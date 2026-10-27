@@ -1,0 +1,6 @@
+{
+  "name": "globalchain-muse",
+  "private": true,
+  "description": "Python app; this file only lets Shopify CLI run it (no Node dependencies).",
+  "scripts": {}
+}
