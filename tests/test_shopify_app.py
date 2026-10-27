@@ -81,7 +81,7 @@ def test_install_url_asks_shopify_for_read_only_scopes(service, admin):
     q = parse_qs(url.query)
     assert url.netloc == SHOP and url.path == "/admin/oauth/authorize"
     assert q["scope"] == ["read_products,read_orders"] and q["client_id"] == ["test-key"]
-    assert q["redirect_uri"] == ["http://localhost:8000/shopify/callback"]
+    assert q["redirect_uri"] == ["http://localhost:8000/auth/callback"]
     assert service.store.get("shopify_oauth_state", q["state"][0])["shop"] == SHOP
     for bad in ("evil.com", "shop.myshopify.com.evil.com", "https://x.myshopify.com/admin"):
         with pytest.raises(ValueError):

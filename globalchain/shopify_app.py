@@ -38,6 +38,8 @@ log = logging.getLogger(__name__)
 SCOPES = "read_products,read_orders"
 API_VERSION = "2026-10"
 STATE_TTL = timedelta(minutes=10)
+# The path Shopify CLI whitelists when it points the app at its dev tunnel.
+CALLBACK_PATH = "/auth/callback"
 _SHOP = re.compile(r"^[a-z0-9][a-z0-9-]*\.myshopify\.com$")
 
 
@@ -79,7 +81,7 @@ def install_url(service, shop: str) -> str:
     state = secrets.token_urlsafe(24)
     service.store.put("shopify_oauth_state", state, {"shop": shop, "created_at": now_iso()})
     query = urlencode({"client_id": service.settings.shopify_api_key, "scope": SCOPES, "state": state,
-                       "redirect_uri": f"{service.settings.public_base_url.rstrip('/')}/shopify/callback"})
+                       "redirect_uri": f"{service.settings.public_base_url.rstrip('/')}{CALLBACK_PATH}"})
     return f"https://{shop}/admin/oauth/authorize?{query}"
 
 

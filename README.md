@@ -156,7 +156,8 @@ placed the order, otherwise held in the store's wallet for the buyer to claim. O
 webhooks are checked with the app secret; the dashboard uses a signed cookie set at install.
 
 To run it you need a Shopify Partner (Dev Dashboard) app with `SHOPIFY_API_KEY` / `SHOPIFY_API_SECRET`,
-its redirect URL set to `{PUBLIC_BASE_URL}/shopify/callback`, and a public `PUBLIC_BASE_URL`.
+its redirect URL set to `{PUBLIC_BASE_URL}/auth/callback`, and a public `PUBLIC_BASE_URL`. For local
+development, `shopify app dev --store {dev-store}.myshopify.com` tunnels to the server and sets both.
 
 ## Known gaps
 
