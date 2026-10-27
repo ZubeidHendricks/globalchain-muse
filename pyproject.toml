@@ -12,6 +12,7 @@ dependencies = [
     "openai>=3.35.1",
     "pillow>=13.0.0",
     "pydantic-settings>=2.16.1",
+    "qrcode>=8.2",
     "uvicorn[standard]>=0.54.0",
 ]
 

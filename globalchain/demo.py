@@ -12,7 +12,7 @@ from pathlib import Path
 
 from .references import price_in_usd
 from .schemas import Listing, ProductVerification, Seller, SellerRisk
-from .service import VeriChainX
+from .service import GlobalChain
 
 _DATA = Path(__file__).parent / "data" / "demo_listings.json"
 _STATIC = Path(__file__).parent / "static"
@@ -55,7 +55,7 @@ def recommend(product: ProductVerification, risk: SellerRisk) -> tuple[str, str]
 _RANK = {"recommended": 0, "caution": 1, "avoid": 2}
 
 
-async def shop(query: str, service: VeriChainX) -> dict:
+async def shop(query: str, service: GlobalChain) -> dict:
     budget = parse_budget_usd(query, service.settings.usd_zar_rate)
     candidates, over_budget = [], []
     for listing, seller in load_demo_listings():

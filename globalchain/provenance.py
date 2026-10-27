@@ -39,13 +39,17 @@ def record_hash(record: dict) -> str:
 def product_key_for(product: dict) -> str:
     """Key that groups records about the same item into one product passport.
 
-    TODO: prefer a serial or date code read from the evidence once extraction exists;
-    listing URL or title is a stand-in that only links records of the same listing.
+    A registered item is keyed by its origin registration, so every resale of it shares one
+    passport. Otherwise listing URL or title is a stand-in that only links records of the
+    same listing.
     """
-    listing = product.get("listing") or {}
-    basis = "|".join(str(v or "").lower() for v in (
-        product.get("brand"), product.get("model"), listing.get("url") or listing.get("title"),
-    ))
+    if product.get("registration_status") == "found":
+        basis = "reg|" + product["registration_id"]
+    else:
+        listing = product.get("listing") or {}
+        basis = "|".join(str(v or "").lower() for v in (
+            product.get("brand"), product.get("model"), listing.get("url") or listing.get("title"),
+        ))
     return "pk_" + hashlib.sha256(basis.encode()).hexdigest()[:20]
 
 
@@ -170,6 +174,8 @@ async def issue_verification_record(
             "evidence": [{"id": e["id"], "feature": e["feature"], "crop_sha256": e["crop_sha256"]}
                          for e in product["evidence"]],
             "findings_sha256": hashlib.sha256(canonical_json(product["findings"]).encode()).hexdigest(),
+            "registration_id": product.get("registration_id"),
+            "registration_status": product.get("registration_status", "none"),
             "engine": product["engine"],
             "models": product["models"],
             "fallback_used": product.get("fallback_used", False),

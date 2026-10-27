@@ -1,22 +1,26 @@
 """FastAPI app: REST API, the MCP streamable HTTP endpoint at /mcp, and the web demo."""
 
+import base64
 import contextlib
 import logging
 from pathlib import Path
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .demo import shop
 from .mcp_server import mcp
 from .provenance import NotFound
+from .registry import qr_png
 from .schemas import (
     IssueRecordRequest,
     ProductVerification,
     ProvenanceCheck,
+    RegisterProductRequest,
+    Registration,
     SellerRisk,
     SellerRiskRequest,
     VerificationRecord,
@@ -34,7 +38,42 @@ router = APIRouter()
 async def healthz() -> dict:
     service = get_service()
     return {"ok": True, "engine": service.engine.name, "models": service.engine.models,
-            "anchoring": type(service.anchorer).__name__, "network": service.settings.hedera_network}
+            "anchoring": type(service.anchorer).__name__, "certificates": type(service.minter).__name__,
+            "network": service.settings.hedera_network}
+
+
+@router.post("/v1/registrations", response_model=Registration, tags=["origin"])
+async def register(req: RegisterProductRequest):
+    try:
+        return await get_service().register_product(req.product)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.get("/v1/registrations/{registration_id}", response_model=Registration, tags=["origin"])
+async def registration(registration_id: str):
+    try:
+        return get_service().get_registration(registration_id)
+    except NotFound as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@router.get("/v1/registrations/{registration_id}/qr.png", tags=["origin"])
+async def registration_qr(registration_id: str):
+    try:
+        reg = get_service().get_registration(registration_id)
+    except NotFound as exc:
+        raise HTTPException(404, str(exc)) from exc
+    return Response(qr_png(reg.origin_url), media_type="image/png")
+
+
+@router.get("/v1/registrations/{registration_id}/crops/{region_id}.jpg", tags=["origin"])
+async def registration_crop(registration_id: str, region_id: str):
+    try:
+        data_url = get_service().registration_crop(registration_id, region_id)
+    except NotFound as exc:
+        raise HTTPException(404, str(exc)) from exc
+    return Response(base64.b64decode(data_url.partition(",")[2]), media_type="image/jpeg")
 
 
 @router.post("/v1/verify-product", response_model=ProductVerification, tags=["verification"])
@@ -90,6 +129,11 @@ async def index():
 @router.get("/passport/{product_key}", include_in_schema=False)
 async def passport_page(product_key: str):
     return FileResponse(_STATIC / "passport.html")
+
+
+@router.get("/origin/{registration_id}", include_in_schema=False)
+async def origin_page(registration_id: str):
+    return FileResponse(_STATIC / "origin.html")
 
 
 def create_app() -> FastAPI:

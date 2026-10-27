@@ -49,10 +49,13 @@ async def test_mcp_tools_are_listed_with_classes():
     from globalchain.mcp_server import mcp
 
     tools = {t.name: t for t in await mcp.list_tools()}
-    assert set(tools) == {"verify_product", "assess_seller_risk", "issue_verification_record", "check_provenance"}
-    assert tools["verify_product"].annotations.read_only_hint is True
-    write = tools["issue_verification_record"].annotations
-    assert write.read_only_hint is False and write.destructive_hint is False
+    assert set(tools) == {"verify_product", "assess_seller_risk", "issue_verification_record", "check_provenance",
+                          "register_product", "get_registration"}
+    for name in ("verify_product", "assess_seller_risk", "check_provenance", "get_registration"):
+        assert tools[name].annotations.read_only_hint is True, name
+    for name in ("issue_verification_record", "register_product"):
+        write = tools[name].annotations
+        assert write.read_only_hint is False and write.destructive_hint is False, name
 
 
 async def test_mcp_tool_call_round_trip(service, demo_items, monkeypatch):

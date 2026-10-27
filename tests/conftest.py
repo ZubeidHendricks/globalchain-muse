@@ -22,10 +22,10 @@ def settings(tmp_path):
 def service(settings):
     from globalchain.engine import MockEngine
     from globalchain.provenance import NullAnchorer
-    from globalchain.service import VeriChainX
+    from globalchain.service import GlobalChain
     from globalchain.store import Store
 
-    return VeriChainX(settings, MockEngine(), Store(settings.database_path), NullAnchorer())
+    return GlobalChain(settings, MockEngine(), Store(settings.database_path), NullAnchorer())
 
 
 @pytest.fixture

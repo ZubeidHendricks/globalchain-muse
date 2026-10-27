@@ -9,14 +9,18 @@ optional c= confidence field when include_confidence is set. We only need the
 boxes to crop evidence regions, so masks are kept as opaque payloads.
 """
 
+import asyncio
 import base64
 import hashlib
 import io
+import logging
 import re
 from dataclasses import dataclass
 
 import httpx
 from PIL import Image
+
+log = logging.getLogger(__name__)
 
 _FRAME = re.compile(r"<(\d+)f>")
 _RECORD = re.compile(
@@ -59,6 +63,21 @@ async def load_image(url: str, client: httpx.AsyncClient) -> bytes:
     resp = await client.get(url, follow_redirects=True)
     resp.raise_for_status()
     return resp.content
+
+
+async def load_images(urls: list[str], timeout: float) -> list[str]:
+    """Fetch and normalise photos to JPEG data URLs, skipping any that fail to load."""
+    async with httpx.AsyncClient(timeout=timeout) as http:
+        raw = await asyncio.gather(*(load_image(u, http) for u in urls), return_exceptions=True)
+    images = []
+    for url, img in zip(urls, raw):
+        try:
+            if isinstance(img, Exception):
+                raise img
+            images.append(to_data_url(img))
+        except Exception as exc:
+            log.warning("could not load image %s: %s", url[:80], exc)
+    return images
 
 
 def to_data_url(image_bytes: bytes, max_side: int = 1536) -> str:

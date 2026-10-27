@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     operator_id: str | None = None
     operator_key: str | None = None
     hedera_topic_id: str | None = None
+    # Origin registrations can also mint an HTS NFT certificate (needs the operator above).
+    mint_certificates: bool = True
+    hedera_nft_token_id: str | None = None
 
     database_path: str = "globalchain.db"
     public_base_url: str = "http://localhost:8000"

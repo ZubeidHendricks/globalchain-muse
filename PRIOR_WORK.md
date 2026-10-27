@@ -17,8 +17,12 @@ during the building period.
 
 Listed as it lands, newest last.
 
-- *(in progress)* Maker registration: Muse Spark chooses an item's distinctive marks, SAM 3.1 captures
-  them as an origin fingerprint, and the registration is anchored on Hedera with a QR code to a
-  public origin page.
-- *(in progress)* Origin comparison: when a listing carries a registration id, Muse Spark compares the
-  listing photos against the item's own registration photos instead of generic brand data.
+- **Oct 27 · Maker registration** (`registry.py`, `certificates.py`, `static/origin.html`,
+  `register_product` and `get_registration` MCP tools, `/v1/registrations` REST endpoints). Muse Spark
+  chooses an item's distinctive marks from the maker's photos; SAM 3.1 crops each one as the origin
+  fingerprint. The registration hash is anchored on Hedera HCS and minted as an HTS NFT certificate
+  (metadata kept under HTS's 100-byte limit), with a QR code that opens a public origin page.
+- **Oct 27 · Origin comparison** (`verify.py`). A listing that carries a registration id is segmented for
+  the features its maker registered, and Muse Spark compares each listing region (E1, E2, …) with the
+  item's origin crop (R1, R2, …). An id that does not exist counts against the listing. Verification
+  records include the registration, and passports group every resale of a registered item together.

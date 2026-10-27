@@ -19,6 +19,9 @@ class Listing(BaseModel):
     marketplace: str | None = None
     brand: str | None = Field(None, description="Claimed brand, e.g. 'Coach'")
     model: str | None = Field(None, description="Claimed model, e.g. 'Tabby 26'")
+    registration_id: str | None = Field(
+        None, description="Origin registration the item claims, e.g. from its QR code ('reg_...')"
+    )
 
 
 class Seller(BaseModel):
@@ -71,6 +74,15 @@ class ProductVerification(BaseModel):
     findings: list[Finding]
     missing_evidence: list[str]
     evidence: list[EvidenceRegion]
+    registration_id: str | None = Field(
+        None, description="Origin registration the listing was compared against, if it claimed one"
+    )
+    registration_status: Literal["none", "found", "unknown"] = Field(
+        "none", description="'unknown' means the listing cited a registration id that does not exist"
+    )
+    origin_evidence: list[EvidenceRegion] = Field(
+        default_factory=list, description="The registration's fingerprint regions (R1, R2, ...) it was compared with"
+    )
     engine: str = Field(description="'meta' for live Muse Spark + SAM 3.1, 'mock' for the offline engine")
     models: dict[str, str]
     fallback_used: bool = Field(False, description="True when Muse Spark's output was not used and the result is rule-based")
@@ -123,6 +135,52 @@ class Anchor(BaseModel):
     consensus_timestamp: str | None = None
     explorer_url: str | None = None
     detail: str | None = None
+
+
+class MakerProduct(BaseModel):
+    """An item a maker registers at origin, before it is ever sold or resold."""
+
+    maker_name: str
+    maker_country: str | None = None
+    title: str
+    category: str = Field("handbag", description="Free text, e.g. 'handbag', 'beaded necklace', 'basket'")
+    brand: str | None = None
+    model: str | None = None
+    description: str = ""
+    serial: str | None = Field(None, description="Serial, batch or date code, if the item has one")
+    image_urls: list[str] = Field(description="Public URLs or data: URLs; close-ups of distinctive marks help")
+
+
+class Certificate(BaseModel):
+    """Hedera Token Service NFT minted for a registration (AfriChain's authenticity certificate)."""
+
+    status: Literal["minted", "not_minted", "failed"]
+    network: str | None = None
+    token_id: str | None = None
+    serial_number: int | None = None
+    transaction_id: str | None = None
+    explorer_url: str | None = None
+    detail: str | None = None
+
+
+class Registration(BaseModel):
+    registration_id: str
+    product: dict = Field(description="The registered product details (without photos)")
+    fingerprint: list[EvidenceRegion] = Field(description="Distinctive regions SAM 3.1 captured at origin")
+    rationale: dict[str, str] = Field(description="Why each fingerprint feature identifies this item")
+    registration_hash: str
+    anchor: Anchor
+    certificate: Certificate
+    origin_url: str
+    qr_url: str
+    issued_at: str
+    engine: str
+    models: dict[str, str]
+    fallback_used: bool = Field(False, description="True when Muse Spark did not choose the features")
+
+
+class RegisterProductRequest(BaseModel):
+    product: MakerProduct
 
 
 class VerificationRecord(BaseModel):

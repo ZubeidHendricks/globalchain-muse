@@ -27,6 +27,14 @@ CREATE TABLE IF NOT EXISTS records (
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS records_product_key ON records(product_key, created_at);
+-- Origin registrations. crops holds the fingerprint crop images (data URLs by region id),
+-- kept off-chain so later listings can be compared against the item's own photos.
+CREATE TABLE IF NOT EXISTS registrations (
+    id TEXT PRIMARY KEY,
+    payload TEXT NOT NULL,
+    crops TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
 """
 
 
@@ -93,6 +101,20 @@ class Store:
         return self._row(
             self._conn.execute("SELECT * FROM records WHERE source_key = ?", (source_key,)).fetchone()
         )
+
+    def save_registration(self, registration_id: str, payload: dict, crops: dict[str, str]) -> None:
+        with self._lock, self._conn:
+            self._conn.execute(
+                "INSERT INTO registrations (id, payload, crops, created_at) VALUES (?, ?, ?, ?)",
+                (registration_id, json.dumps(payload), json.dumps(crops), payload["issued_at"]),
+            )
+
+    def get_registration(self, registration_id: str) -> tuple[dict, dict[str, str]] | None:
+        """Return (payload, crops by region id), or None."""
+        row = self._conn.execute(
+            "SELECT payload, crops FROM registrations WHERE id = ?", (registration_id,)
+        ).fetchone()
+        return (json.loads(row["payload"]), json.loads(row["crops"])) if row else None
 
     def records_for_product(self, product_key: str) -> list[dict]:
         rows = self._conn.execute(

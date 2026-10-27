@@ -98,3 +98,10 @@ li[data-ev] { cursor: default; }
 .record dd { margin: 0; }
 
 .disclaimer { font-size: 0.8rem; color: var(--muted); margin-top: 24px; }
+
+/* Origin page: fingerprint crops and QR code */
+.crops { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.crop { margin: 0; border: 1px solid var(--line); border-radius: 10px; padding: 8px; background: var(--bg); }
+.crop img { display: block; width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 6px; background: var(--surface); }
+.crop figcaption { font-size: 0.85rem; margin-top: 6px; }
+.qr { border-radius: 8px; background: #fff; padding: 4px; }
