@@ -123,10 +123,49 @@ API; refused on mainnet). tUSDC is a test stablecoin GlobalChain creates (`HEDER
 mainnet this would be USDC on Hedera. Without operator credentials, `SimulatedLedger` keeps the same state
 in SQLite and every result says simulated.
 
+## Shopify stores
+
+Shopify stores answer agents through the Universal Commerce Protocol: every store serves MCP at
+`https://{store}/api/ucp/mcp`. Stores listed in `SHOPIFY_STORES` (`domain=Display Name`, comma-separated)
+join the network as vendors whose "agent" is their own catalogue (`search_catalog`). Their offers are
+labelled **Shopify store (not a partner)**: there's no signed envelope and no origin NFT, so the shopper's
+agent verifies them from photos, price and seller signals alone. Ordering one calls `create_checkout`
+and hands the shopper the store's own checkout (`continue_url`); GlobalChain never takes the payment.
+
+**Dropshipping insights** (`storefront.py`). For each Shopify store the agent gathers public signals and
+scores them (cached for a day):
+
+| Signal | Evidence | Weight |
+|---|---|---|
+| D1 | Shipping policy quotes 14+ days (20+ scores higher) | 30–40 |
+| D2 | Dropshipping apps referenced on the storefront (DSers, Zendrop, CJ…) | 35 |
+| D3 | Supplier marketplaces named as product vendors in `/products.json` | 30 |
+| D4 | Domain registered under a year ago (RDAP) | 15–25 |
+| D5 | Policy mentions overseas warehouses or customs | 20 |
+| D6 | No shipping policy | 10 |
+
+High risk (50+) means the agent won't mark the store "recommended": delivery is slow and the item can't
+be traced to a brand. It's a heuristic, not a counterfeit verdict.
+
+**Partner app** (`shopify_app.py`, `/partners`). A store owner becomes a *verified* partner by
+installing the GlobalChain app (OAuth, scopes `read_products,read_orders`). Install creates the store's
+Hedera wallet and subscribes to `orders/paid`. From `/partners/{id}` the owner registers products at
+origin from their Shopify photos; the certificate NFT goes to the store's wallet. When an order is paid,
+GlobalChain mints an ownership NFT per registered item: to the buyer's wallet if a GlobalChain agent
+placed the order, otherwise held in the store's wallet for the buyer to claim. OAuth redirects and
+webhooks are checked with the app secret; the dashboard uses a signed cookie set at install.
+
+To run it you need a Shopify Partner (Dev Dashboard) app with `SHOPIFY_API_KEY` / `SHOPIFY_API_SECRET`,
+its redirect URL set to `{PUBLIC_BASE_URL}/shopify/callback`, and a public `PUBLIC_BASE_URL`.
+
 ## Known gaps
 
 - Vendor agents run in this process. The envelopes are what a remote vendor agent would send over
   HTTP or A2A; the network endpoint for outside vendors isn't built yet.
+- Shopify catalogue requests use Shopify's sample agent profile (`UCP_AGENT_PROFILE_URL`) until
+  GlobalChain serves its own; completing checkout in-agent needs Shopify's token tier, so buyers finish
+  on the store's checkout.
+- The buyer claim flow for escrowed ownership NFTs (orders not placed by a GlobalChain agent) isn't built.
 - Demo wallets are custodial. A real deployment would have shoppers and vendors sign with their own
   wallets (HashPack, WalletConnect).
 

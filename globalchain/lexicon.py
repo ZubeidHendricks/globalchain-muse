@@ -18,7 +18,8 @@ OFF_PLATFORM_TERMS = [
 
 URGENCY_TERMS = ["today only", "last one", "urgent sale", "must go", "quick sale", "first to pay"]
 
-_SAFE_PAYMENTS = {"card", "credit card", "paypal", "platform escrow", "escrow", "buyer protection", "payfast", "ozow"}
+_SAFE_PAYMENTS = {"card", "credit card", "paypal", "platform escrow", "escrow", "buyer protection", "payfast", "ozow",
+                  "shopify_checkout", "shop pay"}  # Shopify checkout takes cards, with chargebacks
 
 
 def find_terms(text: str, terms: list[str]) -> list[str]:

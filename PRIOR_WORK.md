@@ -37,3 +37,10 @@ Listed as it lands, newest last.
   in signed envelopes; it checks signatures and NFT ownership on Hedera, verifies and ranks offers, and
   prepares the order the shopper asks for. Paying in tUSDC swaps payment and the item's NFT in one
   atomic Hedera transaction; the vendor's agent then ships, with each step anchored on HCS.
+- **Oct 27 · Shopify stores on the network** (`shopify.py`, `storefront.py`). Shopify stores answer the
+  shopper's agent from their own catalogues over Shopify's UCP MCP endpoint, and orders hand off to the
+  store's checkout. Each store gets dropshipping insights from public signals (shipping policy, storefront
+  apps, product vendors, domain age) that lower how strongly the agent recommends it.
+- **Oct 27 · Shopify partner app** (`shopify_app.py`, `static/partners.html`, `static/partner.html`).
+  Store owners install the app over OAuth to become verified partners with a Hedera wallet, register
+  products at origin from their Shopify photos, and get ownership NFTs minted for buyers on `orders/paid`.

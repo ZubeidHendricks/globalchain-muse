@@ -136,3 +136,10 @@ def test_store_domain_validation():
     assert shopify.store_domain("https://WWW.Example.com/collections/x") == "www.example.com"
     with pytest.raises(ValueError):
         shopify.store_domain("javascript:alert(1)")
+
+
+def test_shopify_checkout_counts_as_protected_payment():
+    from globalchain.lexicon import only_irreversible_payments
+
+    assert not only_irreversible_payments(["shopify_checkout"])
+    assert only_irreversible_payments(["crypto", "eft"])

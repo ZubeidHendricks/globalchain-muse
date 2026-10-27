@@ -154,8 +154,16 @@ let mode = "shop";
 const sessions = { shop: null, make: null };
 const CHECK = {
   verified: ["authentic", "Verified vendor"], unverified: ["counterfeit", "Unverified vendor"],
-  invalid_signature: ["counterfeit", "Bad signature"],
+  invalid_signature: ["counterfeit", "Bad signature"], shopify_store: ["neutral", "Shopify store (not a partner)"],
 };
+const RISK = { low: "authentic", medium: "neutral", high: "counterfeit" };
+
+function insightChip(ins) {
+  if (!ins) return "";
+  const days = ins.delivery_days ? ` · ${ins.delivery_days[0]}–${ins.delivery_days[1]} days` : "";
+  const why = ins.signals.map((s) => (typeof s === "string" ? s : `${s.id}: ${s.detail}`)).join("\n") || "No dropshipping signals";
+  return `<span class="chip ${RISK[ins.dropship_risk] || "neutral"}" title="${esc(why)}">Dropship risk: ${esc(ins.dropship_risk)}${days}</span>`;
+}
 const NFT = {
   owned: ["authentic", "Holds the item's NFT"], cloned: ["counterfeit", "Copied QR: NFT belongs to someone else"],
   no_registration: ["neutral", "No origin record"], no_nft: ["neutral", "No NFT"], not_held: ["counterfeit", "NFT not held"],
@@ -165,7 +173,7 @@ function offerChecks(o) {
   const [vc, vl] = CHECK[o.vendor_check] || ["neutral", o.vendor_check];
   const [nc, nl] = NFT[o.nft] || ["neutral", o.nft];
   return `<div class="checks"><span class="chip ${vc}" title="${esc(o.vendor_detail)}">${vl}</span>
-    <span class="chip ${nc}" title="${esc(o.nft_detail)}">${nl}</span></div>
+    <span class="chip ${nc}" title="${esc(o.nft_detail)}">${nl}</span>${insightChip(o.store_insights)}</div>
     <blockquote class="pitch">“${esc(o.pitch)}” <span class="muted">— ${esc(o.vendor)}'s agent</span></blockquote>`;
 }
 
@@ -187,7 +195,20 @@ function transcript(messages) {
   return `<details class="a2a" open><summary>Agent-to-agent messages (${messages.length})</summary><ul>${rows}</ul></details>`;
 }
 
+function shopifyOrderCard(o) {
+  const el = document.createElement("article");
+  el.className = "card order";
+  el.style.gridTemplateColumns = "120px 1fr";
+  el.innerHTML = `<div>${o.photo ? `<img src="${esc(o.photo)}" alt="" style="width:100%;border-radius:8px">` : ""}</div>
+    <div><div class="head"><div><h2>${esc(o.title)}</h2><div class="muted">from ${esc(o.vendor_name)} · ${esc(o.payment_label)}</div></div>
+      <div class="price">$${o.amount_usd.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div></div>
+      <p class="muted">Your agent built a cart on the store's own Shopify checkout. You pay there, with the store's payment methods. ${esc(o.ownership)}</p>
+      <div class="actions"><a class="button primary" href="${esc(o.checkout.continue_url)}" target="_blank" rel="noopener">Continue to ${esc(o.vendor_name)} checkout</a></div></div>`;
+  return el;
+}
+
 function orderCard(o) {
+  if (o.payment_method === "shopify_checkout") return shopifyOrderCard(o);
   const el = document.createElement("article");
   el.className = "card order";
   el.style.gridTemplateColumns = "120px 1fr";

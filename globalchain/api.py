@@ -7,12 +7,12 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, FastAPI, HTTPException
-from fastapi.responses import FileResponse, Response
+from fastapi import APIRouter, Cookie, FastAPI, Header, HTTPException, Request
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import orders
+from . import orders, shopify_app
 from .agent import run_agent
 from .demo import shop
 from .mcp_server import mcp
@@ -200,6 +200,91 @@ async def index():
 @router.get("/passport/{product_key}", include_in_schema=False)
 async def passport_page(product_key: str):
     return FileResponse(_STATIC / "passport.html")
+
+
+# --- Shopify partner app -------------------------------------------------------------------------
+
+def _partner(vendor_id: str, cookie: str | None) -> None:
+    if shopify_app.session_vendor(get_service().settings, cookie) != vendor_id:
+        raise HTTPException(403, "Sign in by installing the GlobalChain app on this store")
+
+
+@router.get("/shopify/install", tags=["partners"], summary="Start installing the GlobalChain app on a store")
+async def shopify_install(shop: str):
+    try:
+        return RedirectResponse(shopify_app.install_url(get_service(), shop), status_code=303)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except shopify_app.ShopifyAuthError as exc:
+        raise HTTPException(503, str(exc)) from exc
+
+
+@router.get("/shopify/callback", include_in_schema=False)
+async def shopify_callback(request: Request):
+    try:
+        v = await shopify_app.complete_install(get_service(), dict(request.query_params))
+    except (shopify_app.ShopifyAuthError, ValueError) as exc:
+        raise HTTPException(403, str(exc)) from exc
+    resp = RedirectResponse(f"/partners/{v['vendor_id']}", status_code=303)
+    resp.set_cookie(shopify_app.SESSION_COOKIE, shopify_app.session_cookie(get_service().settings, v["vendor_id"]),
+                    httponly=True, samesite="lax", secure=get_service().settings.public_base_url.startswith("https"))
+    return resp
+
+
+@router.post("/shopify/webhooks/orders-paid", include_in_schema=False)
+async def shopify_orders_paid(request: Request, x_shopify_hmac_sha256: str | None = Header(None),
+                              x_shopify_shop_domain: str | None = Header(None),
+                              x_shopify_webhook_id: str | None = Header(None)):
+    body = await request.body()
+    try:
+        shopify_app.verify_webhook_hmac(get_service().settings, body, x_shopify_hmac_sha256)
+    except shopify_app.ShopifyAuthError as exc:
+        raise HTTPException(401, str(exc)) from exc
+    try:
+        return await shopify_app.order_paid(get_service(), x_shopify_shop_domain or "", x_shopify_webhook_id,
+                                            await request.json())
+    except (NotFound, ValueError) as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@router.get("/v1/partners/{vendor_id}", tags=["partners"], summary="A partner store's wallet and products")
+async def partner(vendor_id: str, gc_partner: str | None = Cookie(None)) -> dict:
+    _partner(vendor_id, gc_partner)
+    service = get_service()
+    v = service.store.get("vendor", vendor_id)
+    try:
+        products = await shopify_app.partner_products(service, vendor_id)
+    except NotFound as exc:
+        raise HTTPException(404, str(exc)) from exc
+    return {"vendor": {**{k: v.get(k) for k in ("vendor_id", "name", "store_domain", "verified", "partner")},
+                       "wallet": wallet_view(v.get("wallet"))},
+            "products": products,
+            "ownership_nfts": [w for w in service.store.all("shopify_webhook") if w["shop"] == v["store_domain"]]}
+
+
+class RegisterPartnerProduct(BaseModel):
+    product_id: str
+
+
+@router.post("/v1/partners/{vendor_id}/register", tags=["partners"], summary="Register a product at origin")
+async def partner_register(vendor_id: str, req: RegisterPartnerProduct, gc_partner: str | None = Cookie(None)):
+    _partner(vendor_id, gc_partner)
+    try:
+        return await shopify_app.register_partner_product(get_service(), vendor_id, req.product_id)
+    except NotFound as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.get("/partners", include_in_schema=False)
+async def partners_page():
+    return FileResponse(_STATIC / "partners.html")
+
+
+@router.get("/partners/{vendor_id}", include_in_schema=False)
+async def partner_page(vendor_id: str):
+    return FileResponse(_STATIC / "partner.html")
 
 
 @router.get("/track/{order_id}", include_in_schema=False)
