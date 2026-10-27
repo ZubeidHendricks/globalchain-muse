@@ -35,6 +35,13 @@ CREATE TABLE IF NOT EXISTS registrations (
     crops TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
+-- Listings the maker agent puts up for sale in the demo marketplace.
+CREATE TABLE IF NOT EXISTS market_listings (
+    id TEXT PRIMARY KEY,
+    listing TEXT NOT NULL,
+    seller TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
 """
 
 
@@ -121,3 +128,14 @@ class Store:
             "SELECT * FROM records WHERE product_key = ? ORDER BY created_at, rowid", (product_key,)
         ).fetchall()
         return [self._row(r) for r in rows]
+
+    def save_market_listing(self, listing_id: str, listing: dict, seller: dict) -> None:
+        with self._lock, self._conn:
+            self._conn.execute(
+                "INSERT INTO market_listings (id, listing, seller, created_at) VALUES (?, ?, ?, ?)",
+                (listing_id, json.dumps(listing), json.dumps(seller), now_iso()),
+            )
+
+    def market_listings(self) -> list[tuple[str, dict, dict]]:
+        rows = self._conn.execute("SELECT * FROM market_listings ORDER BY created_at, rowid").fetchall()
+        return [(r["id"], json.loads(r["listing"]), json.loads(r["seller"])) for r in rows]

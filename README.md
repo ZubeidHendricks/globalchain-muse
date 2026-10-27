@@ -55,7 +55,9 @@ Copy `.env.example` to `.env` to configure both.
 - **REST**: `POST /v1/registrations`, `GET /v1/registrations/{id}` (plus `/qr.png` and `/crops/{R1}.jpg`),
   `POST /v1/verify-product`, `POST /v1/seller-risk`, `POST /v1/records`, `GET /v1/records/{id}/provenance`,
   `GET /v1/passports/{product_key}`. OpenAPI docs at `/docs`.
-- **Web**: `/` (scripted shopping agent), `/origin/{registration_id}` (public origin page the QR code opens)
+- **Agents**: `POST /demo/agent` with `{"mode": "make" | "shop", "message": "...", "photos": [...]}` runs the
+  maker or shopper agent and returns every tool call it made, its reply and the result cards.
+- **Web**: `/` (maker and shopper agents), `/origin/{registration_id}` (public origin page the QR code opens)
   and `/passport/{product_key}`.
 
 ## Layout
@@ -71,7 +73,8 @@ globalchain/
   provenance.py   record hashing, HCS anchoring (hiero-sdk-python), mirror-node checks
   mcp_server.py   MCP tools (mcp 2.x MCPServer)
   api.py          FastAPI app; mounts MCP at /mcp
-  demo.py         scripted agent behind the web demo
+  agent.py        Muse Spark maker and shopper agents (chat-completions tool calling), scripted fallback
+  demo.py         demo marketplace data and the older scripted /demo/shop flow
   data/           brand reference data and demo listings
 ```
 
@@ -80,6 +83,20 @@ globalchain/
 ```bash
 uv run pytest
 ```
+
+## Agents
+
+Both agents run on Muse Spark tool calling (`AGENT_MODEL`, default `MUSE_MODEL`).
+
+- **Maker agent**: tools `register_product` and `list_for_sale`. It sees the attached photos (P1, P2...),
+  registers the item, and lists it with its registration id.
+- **Shopper agent**: tools `search_listings`, `verify_product`, `assess_seller_risk`, `get_registration`
+  and `present_recommendations`. It must check every candidate before ranking, and a guardrail downgrades
+  any "recommended" listing that the checks found likely counterfeit or high risk. It never approves a
+  purchase: the shopper clicks Approve or Skip, which issues the Hedera record.
+
+With no Model API key, or if a Muse Spark turn fails, a scripted policy continues from the same run
+state and the trace says so.
 
 ## Known gaps
 

@@ -105,3 +105,16 @@ li[data-ev] { cursor: default; }
 .crop img { display: block; width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 6px; background: var(--surface); }
 .crop figcaption { font-size: 0.85rem; margin-top: 6px; }
 .qr { border-radius: 8px; background: #fff; padding: 4px; }
+
+/* Agent modes, photo picker and reply */
+.modes { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.modes button.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.picker { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; font-size: 0.85rem; }
+.picker label { position: relative; cursor: pointer; }
+.picker img { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; border: 2px solid var(--line); display: block; }
+.picker input { position: absolute; top: 4px; left: 4px; margin: 0; }
+.picker input:checked + img { border-color: var(--accent); }
+.answer { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--radius); padding: 14px 16px; margin: 0 0 16px; white-space: pre-wrap; }
+.trace .bad { color: var(--bad); }
+.trace .tag { font-size: 0.7rem; }
+.picker[hidden], .answer[hidden] { display: none; }

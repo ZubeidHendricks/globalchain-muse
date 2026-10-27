@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 
 
 # Muse Spark reasoning tasks; each can run on its own model (see Settings.verify_model / seller_model).
-TASKS = ("verify", "seller", "register")
+TASKS = ("verify", "seller", "register", "agent")
 
 
 class Engine(Protocol):
@@ -64,6 +64,7 @@ class MetaEngine:
             "verify": settings.verify_model or settings.muse_model,
             "seller": settings.seller_model or settings.muse_model,
             "register": settings.muse_model,
+            "agent": settings.agent_model or settings.muse_model,
             "segmentation": settings.sam_model,
         }
         self._sam_slots = asyncio.Semaphore(6)
@@ -118,12 +119,21 @@ class MetaEngine:
         return parsed, False
 
 
+    async def chat(self, task: str, messages: list[dict], tools: list[dict]) -> dict:
+        """One tool-calling turn. Returns the assistant message; API errors propagate to the agent loop."""
+        resp = await self.client.chat.completions.create(
+            model=self.models[task], messages=messages, tools=tools,
+            reasoning_effort=self.settings.reasoning_effort,
+        )
+        return resp.choices[0].message.model_dump(include={"role", "content", "tool_calls"}, exclude_none=True)
+
+
 class MockEngine:
     """Offline engine for development and tests. Output is clearly labelled 'mock'."""
 
     name = "mock"
     models = {"verify": "mock-reasoner", "seller": "mock-reasoner", "register": "mock-reasoner",
-              "segmentation": "mock-segmenter"}
+              "agent": "scripted-agent", "segmentation": "mock-segmenter"}
 
     async def segment(self, image_data_url: str, prompt: str, frame_size: tuple[int, int]) -> str:
         # Deterministic pseudo-box per (image, prompt), emitted in SAM 3.1's grammar

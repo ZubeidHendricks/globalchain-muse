@@ -4,13 +4,15 @@ import base64
 import contextlib
 import logging
 from pathlib import Path
+from typing import Literal
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from .agent import run_agent
 from .demo import shop
 from .mcp_server import mcp
 from .provenance import NotFound
@@ -114,6 +116,20 @@ async def passport(product_key: str) -> dict:
 
 class ShopRequest(BaseModel):
     query: str
+
+
+class AgentRequest(BaseModel):
+    mode: Literal["shop", "make"] = "shop"
+    message: str
+    photos: list[str] = Field(default_factory=list, description="Demo image paths (/static/demo/...) or data: URLs")
+
+
+@router.post("/demo/agent", tags=["demo"])
+async def demo_agent(req: AgentRequest) -> dict:
+    try:
+        return await run_agent(req.mode, req.message, get_service(), req.photos[:4])
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 @router.post("/demo/shop", tags=["demo"])

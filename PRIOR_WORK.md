@@ -26,3 +26,9 @@ Listed as it lands, newest last.
   the features its maker registered, and Muse Spark compares each listing region (E1, E2, …) with the
   item's origin crop (R1, R2, …). An id that does not exist counts against the listing. Verification
   records include the registration, and passports group every resale of a registered item together.
+- **Oct 27 · Muse Spark agents** (`agent.py`, `/demo/agent`, the web demo). A maker agent registers an
+  item from its photos and lists it; a shopper agent searches, verifies every candidate (against the
+  origin fingerprint when a listing claims one), checks sellers and ranks them through Muse Spark tool
+  calling, with a guardrail on its recommendations and a scripted fallback. Replaces the scripted demo.
+- **Oct 27 · Hedera testnet live**: registrations, NFT certificates and verification records running
+  on testnet (topic `0.0.11188588`, certificate collection `0.0.11188589`).

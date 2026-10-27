@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     # Optional per-task overrides of muse_model, e.g. Muse Wonder for verification only.
     verify_model: str | None = None
     seller_model: str | None = None
+    agent_model: str | None = None
     sam_model: str = "sam-3.1"
     reasoning_effort: str = "medium"
 

@@ -137,24 +137,90 @@ async function decide(el, result, decision) {
   }
 }
 
+const PROMPTS = {
+  shop: "Find me an authentic Coach Tabby under $800",
+  make: "I'm Thandi Mokoena from Johannesburg. Register my Coach Tabby 26 bag and list it for R5,200.",
+};
+const DEMO_PHOTOS = ["tabby-a-1", "tabby-a-2", "tabby-b-1", "tabby-b-2", "jetset-c-1", "tabby-d-1"].map((n) => `/static/demo/${n}.png`);
+let mode = "shop";
+const picked = new Set(DEMO_PHOTOS.slice(0, 2));
+
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll("[data-mode]").forEach((b) => b.classList.toggle("on", b.dataset.mode === m));
+  $("#query").value = PROMPTS[m];
+  $("#picker").hidden = m !== "make";
+}
+
+function renderPicker() {
+  $("#picker").innerHTML = `<span class="muted">Photos to attach:</span>` + DEMO_PHOTOS.map((u, i) =>
+    `<label><input type="checkbox" value="${u}" ${picked.has(u) ? "checked" : ""}><img src="${u}" alt="Demo photo ${i + 1}"></label>`).join("");
+  $("#picker").querySelectorAll("input").forEach((c) => c.addEventListener("change", () => {
+    c.checked ? picked.add(c.value) : picked.delete(c.value);
+  }));
+}
+
+function step(t) {
+  const who = t.policy && t.policy !== "scripted" ? `<span class="tag">${esc(t.policy)}</span> ` : "";
+  if (t.kind === "note") return `<span class="tag mock">fallback</span> ${esc(t.text)}`;
+  if (t.kind === "think") return `${who}<em>${esc(t.text)}</em>`;
+  const args = Object.entries(t.args || {}).filter(([k]) => k !== "items")
+    .map(([k, v]) => `${esc(k)}=${esc(typeof v === "string" ? v : JSON.stringify(v))}`).join(", ");
+  const out = t.error ? `<span class="bad">error: ${esc(t.error)}</span>` : esc(t.summary || "");
+  return `${who}<code>${esc(t.tool)}</code>(${args}) → ${out}`;
+}
+
+function registrationCard(reg, listing) {
+  const el = document.createElement("article");
+  el.className = "card";
+  el.style.gridTemplateColumns = "1fr";
+  const a = reg.anchor, c = reg.certificate;
+  const crops = reg.fingerprint.map((f) => `
+    <figure class="crop"><img src="/v1/registrations/${esc(reg.registration_id)}/crops/${esc(f.id)}.jpg" alt="${esc(f.feature)}">
+      <figcaption><span class="chip neutral">${esc(f.id)}</span> ${esc(f.feature)}<div class="muted">${esc(reg.rationale[f.feature] || "")}</div></figcaption></figure>`).join("");
+  el.innerHTML = `<div>
+    <div class="head"><div><h2>${esc(reg.product.title)}</h2>
+      <div class="muted">Registered by ${esc(reg.product.maker_name)} · <a href="${esc(new URL(reg.origin_url).pathname)}">origin page</a></div></div>
+      <img class="qr" src="${esc(new URL(reg.qr_url).pathname)}" alt="QR code" width="96" height="96"></div>
+    <h3>Origin fingerprint</h3><div class="crops">${crops}</div>
+    <dl class="record">
+      <dt>Hedera record</dt><dd>${a.status === "anchored" ? `topic ${esc(a.topic_id)} #${a.sequence_number} · <a href="${esc(a.explorer_url)}" target="_blank" rel="noopener">HashScan</a>` : esc(a.detail || a.status)}</dd>
+      <dt>NFT certificate</dt><dd>${c.status === "minted" ? `${esc(c.token_id)} #${c.serial_number} · <a href="${esc(c.explorer_url)}" target="_blank" rel="noopener">HashScan</a>` : esc(c.detail || c.status)}</dd>
+      ${listing ? `<dt>Listed for sale</dt><dd>${esc(listing.listing_id)} · ${price(listing)}. Switch to the shopper agent to find it.</dd>` : ""}
+    </dl></div>`;
+  return el;
+}
+
 $("#ask").addEventListener("submit", async (e) => {
   e.preventDefault();
   $("#go").disabled = true;
   $("#trace").innerHTML = "";
   $("#results").innerHTML = "";
-  trace(`Searching listings for “${esc($("#query").value)}”`);
-  trace(`<code>verify_product</code> + <code>assess_seller_risk</code> on each candidate`);
+  $("#answer").hidden = true;
+  trace(`${mode === "shop" ? "Shopper" : "Maker"} agent is working…`);
   try {
-    const data = await api("/demo/shop", { query: $("#query").value });
-    if (data.budget_usd) trace(`Budget ≈ $${data.budget_usd}; ${data.skipped_over_budget.length} listing(s) over budget skipped`);
-    trace(`${data.results.length} candidate(s) checked; ranked by evidence and seller risk`);
-    data.results.forEach((r) => $("#results").append(card(r)));
+    const data = await api("/demo/agent", { mode, message: $("#query").value, photos: mode === "make" ? [...picked] : [] });
+    $("#trace").innerHTML = "";
+    trace(`<span class="muted">${esc(data.engine === "mock" ? "Scripted policy (no MODEL_API_KEY)" : `Driven by ${data.model}`)} · ${data.tool_calls} tool call(s)</span>`);
+    data.trace.forEach((t) => trace(step(t)));
+    $("#answer").hidden = false;
+    $("#answer").textContent = data.answer;
+    if (data.registration) $("#results").append(registrationCard(data.registration, data.listing));
+    data.results.forEach((r) => {
+      const el = card(r);
+      if (r.overridden) $(".rec", el).insertAdjacentHTML("afterend", ` <span class="tag mock">guardrail: downgraded from “recommended”</span>`);
+      $("#results").append(el);
+    });
   } catch (err) {
     trace(`Failed: ${esc(err.message)}`);
   } finally {
     $("#go").disabled = false;
   }
 });
+
+document.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
+renderPicker();
+setMode("shop");
 
 api("/healthz").then((h) => {
   const tag = $("#engine");

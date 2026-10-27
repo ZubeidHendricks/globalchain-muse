@@ -33,15 +33,21 @@ def parse_budget_usd(query: str, usd_zar_rate: float) -> float | None:
     return amount / usd_zar_rate if unit in ("r", "zar", "rand") else amount
 
 
-def _inline_static_images(listing: Listing) -> Listing:
+def inline_static_urls(urls: list[str]) -> list[str]:
     """Demo images live under /static; hand them to the pipeline as data: URLs."""
-    urls = []
-    for url in listing.image_urls:
+    out = []
+    for url in urls:
         if url.startswith("/static/"):
-            data = (_STATIC / url.removeprefix("/static/")).read_bytes()
-            url = "data:image/png;base64," + base64.b64encode(data).decode()
-        urls.append(url)
-    return listing.model_copy(update={"image_urls": urls})
+            path = (_STATIC / url.removeprefix("/static/")).resolve()
+            if not path.is_relative_to(_STATIC.resolve()):
+                raise ValueError(f"Not a demo image: {url}")
+            url = "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()
+        out.append(url)
+    return out
+
+
+def _inline_static_images(listing: Listing) -> Listing:
+    return listing.model_copy(update={"image_urls": inline_static_urls(listing.image_urls)})
 
 
 def recommend(product: ProductVerification, risk: SellerRisk) -> tuple[str, str]:

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>VeriChainX</title>
+  <title>GlobalChain Muse</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%227%22 fill=%22%231f5c4a%22/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/static/style.css">
 </head>
@@ -11,18 +11,24 @@
 <main>
   <header>
     <div>
-      <h1>VeriChainX</h1>
-      <div class="muted">A trust check your shopping agent runs before checkout.</div>
+      <h1>GlobalChain Muse</h1>
+      <div class="muted">Makers register items at origin. Shoppers' agents check every resale against it.</div>
     </div>
     <span id="engine" class="tag">connecting…</span>
   </header>
 
+  <div class="modes" role="tablist">
+    <button type="button" role="tab" data-mode="make">1 · Maker agent</button>
+    <button type="button" role="tab" data-mode="shop" class="on">2 · Shopper agent</button>
+  </div>
   <form class="ask" id="ask">
-    <input id="query" value="Find me an authentic designer handbag under $800" aria-label="Shopping request">
+    <input id="query" aria-label="Message to the agent">
     <button class="primary" id="go">Ask agent</button>
   </form>
+  <div class="picker" id="picker" hidden></div>
 
   <ul class="trace" id="trace"></ul>
+  <div class="answer" id="answer" hidden></div>
   <section id="results"></section>
 
   <p class="disclaimer">
