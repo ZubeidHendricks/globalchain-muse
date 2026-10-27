@@ -1,0 +1,109 @@
+{
+  "_note": "Fictional listings and sellers for the demo flow. Replace the images with your own photos of real and counterfeit items before recording.",
+  "listings": [
+    {
+      "listing": {
+        "title": "Coach Tabby 26 Shoulder Bag, pebble leather, pre-loved",
+        "description": "Bought at the Sandton City Coach store in 2024, used a handful of times. Creed patch and style number inside, original dust bag and receipt included. Happy to meet at a mall or ship with tracking.",
+        "price": 295,
+        "currency": "USD",
+        "image_urls": ["/static/demo/tabby-a-1.png", "/static/demo/tabby-a-2.png"],
+        "url": "https://marketplace.example/listing/1001",
+        "marketplace": "Example Marketplace",
+        "brand": "Coach",
+        "model": "Tabby 26"
+      },
+      "seller": {
+        "seller_id": "seller-thandi-closet",
+        "name": "Thandi's Closet",
+        "account_age_days": 1460,
+        "rating": 4.8,
+        "review_count": 212,
+        "recent_reviews": [
+          "Exactly as described, beautifully packed.",
+          "Second purchase from Thandi, quick courier delivery.",
+          "Bag was in great condition and came with the dust bag."
+        ],
+        "active_listings": 14,
+        "ships_from": "Johannesburg, ZA",
+        "payment_methods": ["platform escrow", "card"]
+      }
+    },
+    {
+      "listing": {
+        "title": "Coach Tabby 26 bag mirror quality 1:1, brand new",
+        "description": "Top quality 1:1, looks same as original. Limited stock, today only price. WhatsApp me for more pics, EFT only.",
+        "price": 1650,
+        "currency": "ZAR",
+        "image_urls": ["/static/demo/tabby-b-1.png", "/static/demo/tabby-b-2.png"],
+        "url": "https://marketplace.example/listing/2002",
+        "marketplace": "Example Marketplace",
+        "brand": "Coach",
+        "model": "Tabby 26"
+      },
+      "seller": {
+        "seller_id": "seller-luxdeals-za",
+        "name": "LuxDeals ZA",
+        "account_age_days": 12,
+        "rating": 5.0,
+        "review_count": 3,
+        "recent_reviews": ["Great seller fast delivery!!", "Great seller fast delivery!!", "Great seller fast delivery!!"],
+        "active_listings": 140,
+        "ships_from": "Unknown",
+        "payment_methods": ["EFT"]
+      }
+    },
+    {
+      "listing": {
+        "title": "Michael Kors Jet Set Travel Tote, new with tags",
+        "description": "Brand new Jet Set tote, never used. Gift I don't need. Collection in Cape Town or courier at buyer's cost.",
+        "price": 79,
+        "currency": "USD",
+        "image_urls": ["/static/demo/jetset-c-1.png"],
+        "url": "https://marketplace.example/listing/3003",
+        "marketplace": "Example Marketplace",
+        "brand": "Michael Kors",
+        "model": "Jet Set Travel Tote"
+      },
+      "seller": {
+        "seller_id": "seller-capetown-finds",
+        "name": "Cape Town Finds",
+        "account_age_days": 75,
+        "rating": 4.1,
+        "review_count": 8,
+        "recent_reviews": [
+          "Nice bag but I'm not sure it's original, the label looked off.",
+          "Fast delivery.",
+          "Friendly seller."
+        ],
+        "active_listings": 22,
+        "ships_from": "Cape Town, ZA",
+        "payment_methods": ["EFT", "card"]
+      }
+    },
+    {
+      "listing": {
+        "title": "Coach Tabby 26 with signature canvas, boxed",
+        "description": "Brand new from the US outlet, receipt included.",
+        "price": 1100,
+        "currency": "USD",
+        "image_urls": ["/static/demo/tabby-d-1.png"],
+        "url": "https://marketplace.example/listing/4004",
+        "marketplace": "Example Marketplace",
+        "brand": "Coach",
+        "model": "Tabby 26"
+      },
+      "seller": {
+        "seller_id": "seller-outlet-imports",
+        "name": "Outlet Imports",
+        "account_age_days": 900,
+        "rating": 4.6,
+        "review_count": 88,
+        "recent_reviews": ["Pricey but legit.", "Good packaging."],
+        "active_listings": 40,
+        "ships_from": "Durban, ZA",
+        "payment_methods": ["card", "platform escrow"]
+      }
+    }
+  ]
+}

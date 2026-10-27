@@ -1,0 +1,116 @@
+{
+  "_note": "Demo reference data. Traits are general authentication cues, not brand-issued criteria; replace with verified reference sets before relying on them.",
+  "references": [
+    {
+      "id": "coach-tabby-26",
+      "brand": "Coach",
+      "model": "Tabby 26",
+      "aliases": ["tabby", "tabby shoulder bag", "tabby 26"],
+      "category": "handbag",
+      "retail_usd": 450,
+      "resale_usd": [180, 380],
+      "features": [
+        {
+          "name": "signature C hardware",
+          "sam_prompt": "metal logo clasp",
+          "authentic_traits": ["solid, evenly plated metal", "crisp edges on the C shapes", "consistent finish without bubbling or flaking"],
+          "counterfeit_tells": ["hollow or lightweight feel described", "uneven plating or visible seams", "soft, rounded letter edges"]
+        },
+        {
+          "name": "creed or serial patch",
+          "sam_prompt": "leather tag with text",
+          "authentic_traits": ["leather patch stitched on all sides", "evenly stamped text with a style number", "straight, centred lines of text"],
+          "counterfeit_tells": ["glued or printed patch", "misspellings or uneven letter spacing", "missing style number"]
+        },
+        {
+          "name": "stitching",
+          "sam_prompt": "stitched seam",
+          "authentic_traits": ["small, even stitches", "straight lines that follow panel edges", "no loose threads"],
+          "counterfeit_tells": ["irregular stitch length", "wavy lines", "visible glue at seams"]
+        },
+        {
+          "name": "zipper pull",
+          "sam_prompt": "zipper",
+          "authentic_traits": ["branded or quality-marked zipper", "smooth, heavy pull"],
+          "counterfeit_tells": ["unbranded generic zipper", "light pull with rough edges"]
+        }
+      ]
+    },
+    {
+      "id": "michael-kors-jet-set-tote",
+      "brand": "Michael Kors",
+      "model": "Jet Set Travel Tote",
+      "aliases": ["jet set", "jet set tote", "jet set travel"],
+      "category": "handbag",
+      "retail_usd": 398,
+      "resale_usd": [90, 220],
+      "features": [
+        {
+          "name": "MK logo hardware",
+          "sam_prompt": "metal logo plate",
+          "authentic_traits": ["plate fixed with screws or rivets", "letters evenly spaced and sharply cut"],
+          "counterfeit_tells": ["glued plate", "thin or blurred lettering"]
+        },
+        {
+          "name": "interior label",
+          "sam_prompt": "fabric label with text",
+          "authentic_traits": ["woven or stamped label with the brand name", "clean, even text"],
+          "counterfeit_tells": ["printed label that looks blurry", "inconsistent fonts"]
+        },
+        {
+          "name": "monogram print alignment",
+          "sam_prompt": "logo pattern",
+          "authentic_traits": ["monogram print aligned and symmetrical across seams"],
+          "counterfeit_tells": ["print cut off or misaligned at seams"]
+        },
+        {
+          "name": "stitching",
+          "sam_prompt": "stitched seam",
+          "authentic_traits": ["even stitch length", "straight lines"],
+          "counterfeit_tells": ["irregular stitches", "fraying"]
+        }
+      ]
+    },
+    {
+      "id": "generic-handbag",
+      "brand": null,
+      "model": null,
+      "aliases": [],
+      "category": "handbag",
+      "retail_usd": null,
+      "resale_usd": null,
+      "features": [
+        {
+          "name": "logo hardware",
+          "sam_prompt": "metal logo",
+          "authentic_traits": ["crisp, evenly finished branding"],
+          "counterfeit_tells": ["blurred or misshapen branding"]
+        },
+        {
+          "name": "brand label",
+          "sam_prompt": "label with text",
+          "authentic_traits": ["clean, consistent text"],
+          "counterfeit_tells": ["misspellings or inconsistent fonts"]
+        },
+        {
+          "name": "stitching",
+          "sam_prompt": "stitched seam",
+          "authentic_traits": ["even, straight stitching"],
+          "counterfeit_tells": ["irregular stitching, glue marks"]
+        },
+        {
+          "name": "packaging box",
+          "sam_prompt": "box",
+          "authentic_traits": ["branded packaging consistent with the brand"],
+          "counterfeit_tells": ["generic packaging"]
+        },
+        {
+          "name": "dust bag",
+          "sam_prompt": "dust bag",
+          "authentic_traits": ["branded dust bag consistent with the brand"],
+          "counterfeit_tells": ["generic or unbranded dust bag"]
+        }
+      ]
+    }
+  ]
+}
