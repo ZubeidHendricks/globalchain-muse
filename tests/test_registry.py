@@ -18,7 +18,7 @@ def _photo(name: str) -> str:
 
 @pytest.fixture
 def product() -> MakerProduct:
-    return MakerProduct(maker_name="Thandi Mokoena", maker_country="ZA", title="Coach Tabby 26 Shoulder Bag",
+    return MakerProduct(maker_name="Lerato Dlamini", maker_country="ZA", title="Coach Tabby 26 Shoulder Bag",
                         brand="Coach", model="Tabby 26", image_urls=[_photo("tabby-a-1.png"), _photo("tabby-a-2.png")])
 
 

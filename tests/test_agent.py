@@ -8,7 +8,7 @@ from globalchain.agent import run_agent
 from globalchain.engine import MockEngine
 
 PHOTOS = ["/static/demo/tabby-a-1.png", "/static/demo/tabby-a-2.png"]
-MAKER = "I'm Thandi Mokoena from Johannesburg. Register my Coach Tabby 26 bag and list it for R5,200."
+MAKER = "I'm Lerato Dlamini from Johannesburg. Register my Coach Tabby 26 bag and list it for R5,200."
 
 
 def _call(i: int, name: str, **args) -> dict:
@@ -42,7 +42,7 @@ async def test_maker_then_shopper_scripted(service):
     reg_id = made["registration"]["registration_id"]
     assert made["listing"]["registration_id"] == reg_id
     assert made["listing"]["currency"] == "ZAR" and made["listing"]["price"] == 5200
-    assert made["registration"]["product"]["maker_name"] == "Thandi Mokoena"
+    assert made["registration"]["product"]["maker_name"] == "Lerato Dlamini"
     assert made["policy"] == "scripted" and reg_id in made["answer"]
 
     shop = await run_agent("shop", "Find me an authentic Coach Tabby under $800", service)

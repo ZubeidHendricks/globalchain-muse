@@ -139,7 +139,7 @@ async function decide(el, result, decision) {
 
 const PROMPTS = {
   shop: "Find me an authentic Coach Tabby under $800",
-  make: "I'm Thandi Mokoena from Johannesburg. Register my Coach Tabby 26 bag and list it for R5,200.",
+  make: "I'm Lerato Dlamini from Johannesburg. Register my Coach Tabby 26 bag and list it for R5,200.",
 };
 const DEMO_PHOTOS = ["tabby-a-1", "tabby-a-2", "tabby-b-1", "tabby-b-2", "jetset-c-1", "tabby-d-1"].map((n) => `/static/demo/${n}.png`);
 let mode = "shop";

@@ -384,7 +384,7 @@ class ScriptedPolicy:
             name = re.search(r"\b(?:I am|I'm|my name is)\s+([A-Z][\w'-]+(?:\s+[A-Z][\w'-]+)*)", run.message)
             title = re.search(r"register (?:my |this |our )?(.+?)(?:\s+and\b|\s+for\b|[.,]|$)", run.message, re.I)
             if not name or not title:
-                return self._say("Tell me your name and what the item is (for example, \"I'm Thandi Mokoena. "
+                return self._say("Tell me your name and what the item is (for example, \"I'm Lerato Dlamini. "
                                  "Register my beaded necklace\") and I'll register it.")
             country = "ZA" if re.search(r"south africa|johannesburg|cape town|durban|soweto", run.message, re.I) else None
             return self._calls([self._call("register_product", maker_name=name.group(1), maker_country=country,
