@@ -4,4 +4,4 @@ name = "globalchain"
 roles = ["frontend", "backend"]
 
 [commands]
-dev = "sh -c 'PUBLIC_BASE_URL=$SHOPIFY_APP_URL exec .venv/bin/uvicorn globalchain.api:app --host 127.0.0.1 --port $PORT'"
+dev = "./scripts/shopify-dev.sh"
