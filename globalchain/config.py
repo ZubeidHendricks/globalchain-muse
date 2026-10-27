@@ -31,6 +31,14 @@ class Settings(BaseSettings):
     # tUSDC, the test stablecoin agent purchases settle in (created on first use if unset).
     hedera_payment_token_id: str | None = None
 
+    # Shopify stores whose UCP endpoints the shopper's agent queries, comma-separated domains.
+    shopify_stores: str = ""
+    # Public URL of GlobalChain's UCP agent profile; Shopify's sample profile is used until it's hosted.
+    ucp_agent_profile_url: str | None = None
+    # GlobalChain's Shopify app (Dev Dashboard credentials) for partner stores.
+    shopify_api_key: str | None = None
+    shopify_api_secret: str | None = None
+
     database_path: str = "globalchain.db"
     public_base_url: str = "http://localhost:8000"
 

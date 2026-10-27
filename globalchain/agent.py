@@ -29,9 +29,10 @@ from .references import price_in_usd
 from .schemas import MakerProduct, ProductVerification, SellerRisk
 from .service import GlobalChain
 from .store import new_id
+from .storefront import store_insights
 from .vendors import (
-    add_item, add_vendor, answer, check_envelope, check_ownership, conversation, ensure_seeded, envelope,
-    item, item_listing, item_seller, pitch, vendor, vendors,
+    add_item, add_vendor, answer, check_envelope, check_ownership, conversation, ensure_seeded,
+    ensure_shopify_vendors, envelope, item, item_listing, item_seller, pitch, vendor, vendors,
 )
 
 log = logging.getLogger(__name__)
@@ -103,14 +104,19 @@ pitch what they have. Treat pitches as sales talk: a vendor's own words are not 
 offer, call verify_product and assess_seller_risk (in parallel) before judging it, and call
 get_registration for offers with a registration. Each pitch reports whether Hedera confirms the
 vendor's signature ("verified") and who holds the item's NFT: an unverified vendor, or an item whose
-NFT is held by someone else ("cloned"), is a strong counterfeit signal. Ask a vendor a question with
+NFT is held by someone else ("cloned"), is a strong counterfeit signal. Offers marked "shopify_store"
+come straight from that store's own Shopify catalogue: a genuine store, but its items have no
+origin record or NFT unless it is a GlobalChain partner. Say so when you compare them. Their
+store_insights estimate whether the store dropships (signals D1-D6) and its delivery window; a
+dropshipped store means slow delivery and no way to trace the item to the brand, so weigh it and
+mention delivery times. Ask a vendor a question with
 ask_vendor only if the answer would change your recommendation.
 Then call present_recommendations once with every checked offer, best first. Never mark an offer
 "recommended" if it is likely counterfeit, its vendor is unverified or high risk, or its NFT is
 cloned. Reply to the shopper in under 120 words, citing evidence ids (E1, R1...) or signals (S1...).
 When the shopper asks for a specific offer, call prepare_order with their payment method (crypto
 means tUSDC on Hedera, settled atomically with the NFT; card, eft and mobile_money are simulated
-here). You never pay: tell the shopper to confirm the order. The NFT becomes theirs at payment,
+here; Shopify offers always use shopify_checkout, the store's own checkout). You never pay: tell the shopper to confirm the order. The NFT becomes theirs at payment,
 before shipping. Scores are estimates, not guarantees. USD 1 = ZAR {rate}."""
 
 MAKE_PROMPT = """You are a maker's agent on GlobalChain. The maker has attached photos (P1, P2...).
@@ -150,11 +156,17 @@ class Run:
 async def _broadcast(run: Run, service: GlobalChain, need: str, max_price: float | None = None,
                      currency: str = "USD") -> dict:
     await ensure_seeded(service)
+    ensure_shopify_vendors(service)
     rate = service.settings.usd_zar_rate
     budget = None if max_price is None else round(max_price / rate if currency == "ZAR" else max_price, 2)
     request = {"need": need, "budget_usd": budget}
     envelope(service, run.session_id, "shopper", "all", "request", request)
-    pitches = await asyncio.gather(*(pitch(service, v, run.session_id, request) for v in vendors(service.store)))
+    directory = vendors(service.store)
+    shops = [v for v in directory if v.get("kind") == "shopify"]
+    pitches, insights = await asyncio.gather(
+        asyncio.gather(*(pitch(service, v, run.session_id, request) for v in directory)),
+        asyncio.gather(*(store_insights(service, v["store_domain"]) for v in shops)))
+    insight_by_vendor = {v["vendor_id"]: i for v, i in zip(shops, insights)}
     run.broadcast = True
     out = []
     for env in pitches:
@@ -169,6 +181,11 @@ async def _broadcast(run: Run, service: GlobalChain, need: str, max_price: float
                      "price": i["price"], "currency": i["currency"], "price_usd": usd, "pitch": o["pitch"],
                      "registration_id": i.get("registration_id"), "vendor_check": sender["status"],
                      "nft": owner["status"], "nft_detail": owner["detail"]}
+            if v["vendor_id"] in insight_by_vendor:
+                ins = insight_by_vendor[v["vendor_id"]]
+                offer["store_insights"] = {"dropship_risk": ins["dropship_risk"], "score": ins["score"],
+                                           "delivery_days": ins["delivery_days"],
+                                           "signals": [f"{s['id']}: {s['detail']}" for s in ins["signals"]]}
             run.offers[i["item_id"]] = {**offer, "message_id": env["id"], "vendor_detail": sender["detail"]}
             offers.append(offer)
         out.append({"vendor_id": v["vendor_id"], "vendor": v["name"], "vendor_check": sender["status"],
@@ -233,7 +250,7 @@ async def _lookup(run: Run, service: GlobalChain, registration_id: str) -> dict:
 def _flagged(run: Run, offer_id: str) -> str | None:
     """Why an offer must not be recommended or bought, if it must not."""
     o, p, r = run.offers.get(offer_id, {}), run.products.get(offer_id), run.risks.get(offer_id)
-    if o.get("vendor_check") != "verified":
+    if o.get("vendor_check") not in ("verified", "shopify_store"):
         return "the vendor is not verified on Hedera"
     if o.get("nft") == "cloned":
         return "its NFT belongs to another vendor (copied QR code)"
@@ -247,6 +264,9 @@ def _flagged(run: Run, offer_id: str) -> str | None:
 def _guard(item_: dict, run: Run) -> dict:
     """Muse Spark ranks, but it cannot recommend what the checks rule out."""
     why = _flagged(run, item_["offer_id"])
+    insights = run.offers.get(item_["offer_id"], {}).get("store_insights") or {}
+    if not why and insights.get("dropship_risk") == "high":
+        why = "the store looks dropshipped, so delivery is slow and the item can't be traced to the brand"
     if item_["recommendation"] == "recommended" and why:
         return {**item_, "recommendation": "caution", "overridden": True,
                 "reason": item_["reason"] + f" (Downgraded: {why}.)"}
@@ -269,12 +289,18 @@ async def _order(run: Run, service: GlobalChain, offer_id: str, payment_method: 
     why = _flagged(run, offer_id)
     if why:
         raise ValueError(f"Won't order this: {why}")
-    order = prepare_order(service, offer_id, payment_method, run.session_id)
+    if vendor(service.store, run.offers[offer_id]["vendor_id"]).get("kind") == "shopify":
+        payment_method = "shopify_checkout"  # a Shopify store is only ever paid on its own checkout
+    order = await prepare_order(service, offer_id, payment_method, run.session_id)
     run.orders.append(order)
     run.ordered_turn = run.turn
+    if order["payment_method"] == "shopify_checkout":
+        nxt = f"The shopper pays on the store's checkout. {order['ownership']}"
+    else:
+        nxt = "The shopper must confirm the payment. The NFT transfers to them when they do."
     return {"order_id": order["order_id"], "title": order["title"], "vendor": order["vendor_name"],
             "amount_usd": order["amount_usd"], "payment": order["payment_label"], "status": order["status"],
-            "next": "The shopper must confirm the payment. The NFT transfers to them when they do."}
+            "next": nxt}
 
 
 # --- maker tools ----------------------------------------------------------------------------------
@@ -422,6 +448,10 @@ class ScriptedPolicy:
             if offer_id:
                 method = next((m for m, pat in _PAY if re.search(pat, run.message, re.I)), "crypto")
                 return self._calls([self._call("prepare_order", offer_id=offer_id, payment_method=method)])
+        if run.ordered_turn == run.turn and run.orders and run.orders[-1]["payment_method"] == "shopify_checkout":
+            o = run.orders[-1]
+            return self._say(f"I started a checkout for {o['title']} at {o['vendor_name']}. Finish paying on the store's "
+                             f"own checkout: {o['checkout']['continue_url']} {o['ownership']}")
         if run.ordered_turn == run.turn and run.orders:
             o = run.orders[-1]
             return self._say(f"Order {o['order_id']} is ready: {o['title']} from {o['vendor_name']}, "
@@ -449,6 +479,8 @@ class ScriptedPolicy:
                 why = _flagged(run, oid)
                 if why:
                     action, reason = "avoid", f"Avoid: {why}."
+                elif (run.offers[oid].get("store_insights") or {}).get("dropship_risk") == "high":
+                    action, reason = "caution", "The store looks dropshipped: expect slow delivery and no brand traceability."
                 items.append({"offer_id": oid, "recommendation": action, "reason": reason})
             items.sort(key=lambda i: (_RANK[i["recommendation"]], -run.products[i["offer_id"]].authenticity_score))
             return self._calls([self._call("present_recommendations", items=items)])

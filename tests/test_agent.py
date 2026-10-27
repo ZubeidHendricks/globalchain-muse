@@ -84,7 +84,7 @@ async def test_order_pay_ship_and_own(service):
     later = await run_agent("shop", NEED, service)
     assert "Thandi's Closet" not in _offers(later)
     with pytest.raises(ValueError):
-        orders.prepare_order(service, order["item_id"], "card")
+        await orders.prepare_order(service, order["item_id"], "card")
 
 
 async def test_simulated_off_chain_rail_moves_the_nft(service):
@@ -107,8 +107,8 @@ async def test_vendor_rules_for_orders(service):
     await ensure_seeded(service)
     jet = next(i for i in items(service.store) if i["vendor_id"] == "v_capetown_finds")
     with pytest.raises(ValueError, match="accepts"):
-        orders.prepare_order(service, jet["item_id"], "mobile_money")
-    order = orders.prepare_order(service, jet["item_id"], "eft")
+        await orders.prepare_order(service, jet["item_id"], "mobile_money")
+    order = await orders.prepare_order(service, jet["item_id"], "eft")
     with pytest.raises(ValueError, match="isn't paid"):
         await orders.advance(service, order["order_id"])
 

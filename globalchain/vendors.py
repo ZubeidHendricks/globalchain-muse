@@ -22,6 +22,7 @@ from .ledger import Wallet, nft_ref, verify_signature
 from .provenance import NotFound, canonical_json
 from .references import price_in_usd
 from .schemas import Listing, MakerProduct, Seller
+from .shopify import UCPClient, UCPError, store_domain, to_item
 from .store import new_id, now_iso
 
 log = logging.getLogger(__name__)
@@ -133,6 +134,27 @@ async def ensure_seeded(service) -> None:
         log.info("Seeded %d vendors and the shopper wallet %s", len(data["vendors"]), buyer.account_id)
 
 
+def shopify_vendor_id(domain: str) -> str:
+    return "shop_" + re.sub(r"[^a-z0-9]+", "_", domain.removeprefix("www.")).strip("_")
+
+
+def ensure_shopify_vendors(service) -> None:
+    """Add each configured store ('domain' or 'domain=Display Name') to the directory if it isn't there."""
+    for entry in filter(None, (e.strip() for e in service.settings.shopify_stores.split(","))):
+        raw, _, name = entry.partition("=")
+        domain = store_domain(raw)
+        vid = shopify_vendor_id(domain)
+        if service.store.get("vendor", vid):
+            continue
+        name = name.strip() or domain.removeprefix("www.").split(".")[0].title()
+        service.store.put("vendor", vid, {
+            "vendor_id": vid, "kind": "shopify", "store_domain": domain, "partner": False, "name": name,
+            "country": None, "verified": False, "wallet": None, "joined_at": now_iso(),
+            "persona": f"The {name} Shopify store.",
+            "seller": {"seller_id": f"shopify-{domain}", "name": name, "ships_from": None,
+                       "payment_methods": ["shopify_checkout"]}})
+
+
 # --- signed messages ------------------------------------------------------------------------------
 
 def _signed_bytes(env: dict) -> bytes:
@@ -156,6 +178,10 @@ def envelope(service, conversation_id: str, sender: dict | str, to: str, kind: s
 async def check_envelope(service, env: dict) -> dict:
     """Who sent this, according to Hedera rather than to the message itself."""
     v = service.store.get("vendor", env["from"])
+    if v and v.get("kind") == "shopify" and not v.get("partner"):
+        return {"status": "shopify_store",
+                "detail": f"Read directly from {v['store_domain']}'s own UCP endpoint. Not a GlobalChain partner, "
+                          "so its items have no origin record or NFT"}
     if not v or not v.get("verified") or not v.get("wallet"):
         return {"status": "unverified", "detail": "Not in GlobalChain's verified vendor directory"}
     if not env.get("signature") or env.get("signer") != v["wallet"]["account_id"]:
@@ -233,9 +259,39 @@ def _fits(service, i: dict, need: str, budget_usd: float | None) -> bool:
     return not words or any(w in text for w in words) or bool(words & bagish and i["category"] in ("handbag", "tote"))
 
 
+async def _shopify_catalogue(service, v: dict, request: dict) -> list[dict]:
+    """Search the store's own UCP catalogue and keep the results as catalogue items."""
+    found = await UCPClient(v["store_domain"], service.settings).search(request["need"], limit=3)
+    out = []
+    for p in found:
+        doc = to_item(v["vendor_id"], v["store_domain"], v["name"], p)
+        if doc is None:
+            continue
+        old = service.store.get("item", doc["item_id"])
+        if old:  # keep its registration, NFT and sale status
+            doc = {**doc, **{k: old[k] for k in ("registration_id", "nft", "status", "listed_at") if k in old}}
+        service.store.put("item", doc["item_id"], doc)
+        out.append(doc)
+    return out
+
+
 async def pitch(service, v: dict, conversation_id: str, request: dict) -> dict:
     """One vendor agent's answer to a broadcast request, as a signed envelope."""
     budget = request.get("budget_usd")
+    if v.get("kind") == "shopify":
+        try:
+            found = await _shopify_catalogue(service, v, request)
+        except UCPError as exc:
+            log.warning("Shopify store %s unavailable: %s", v["store_domain"], exc)
+            return envelope(service, conversation_id, v, "shopper", "pitch",
+                            {"message": f"{v['store_domain']} didn't answer.", "offers": [], "fallback_used": True})
+        if not v.get("partner"):
+            # No vendor agent: the offers are the store's own catalogue results, quoted as they are.
+            offers = [{"item_id": i["item_id"], "pitch": i["description"][:200] or i["title"]}
+                      for i in found if _fits(service, i, "", budget)]
+            return envelope(service, conversation_id, v, "shopper", "pitch", {
+                "message": f"Catalogue results from {v['store_domain']}/api/ucp/mcp", "offers": offers,
+                "fallback_used": False, "model": None, "source": "shopify_ucp"})
     catalogue = _catalogue(service.store, v)
 
     def fallback() -> dict:

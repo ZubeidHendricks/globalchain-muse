@@ -13,6 +13,7 @@ from .ledger import nft_ref
 from .provenance import NotFound, canonical_json
 from .references import price_in_usd
 from .store import new_id, now_iso
+from .shopify import UCPClient, UCPError
 from .vendors import BUYER_WALLET, envelope, item, item_listing, vendor
 
 MESSAGE_TYPE = "gcm.order.v1"
@@ -21,6 +22,7 @@ PAYMENT_METHODS = {
     "card": "Card (simulated in this demo)",
     "eft": "EFT (simulated in this demo)",
     "mobile_money": "Mobile money (simulated in this demo)",
+    "shopify_checkout": "The store's own Shopify checkout (Shop Pay, cards and the store's other methods)",
 }
 # What the vendor's agent does next, and what it tells the shopper's agent.
 FULFILMENT = [
@@ -52,7 +54,32 @@ def get_order(service, order_id: str) -> dict:
     return o
 
 
-def prepare_order(service, item_id: str, payment_method: str, conversation_id: str | None = None) -> dict:
+async def _shopify_order(service, i: dict, v: dict, conversation_id: str | None) -> dict:
+    """Build the checkout on the store; the shopper pays there, never through GlobalChain."""
+    try:
+        checkout = await UCPClient(v["store_domain"], service.settings).create_checkout(i["shopify"]["variant_id"])
+    except UCPError as exc:
+        raise ValueError(f"Couldn't start a checkout at {v['store_domain']}: {exc}") from exc
+    if not checkout.get("continue_url"):
+        raise ValueError(f"{v['store_domain']} didn't return a checkout link")
+    total = next((t for t in checkout.get("totals") or [] if t.get("type") == "total"), None)
+    order = {"order_id": new_id("ord"), "conversation_id": conversation_id, "item_id": i["item_id"],
+             "vendor_id": v["vendor_id"], "vendor_name": v["name"], "title": i["title"], "photo": (i["photos"] or [""])[0],
+             "price": i["price"], "currency": i["currency"],
+             "amount_usd": round(price_in_usd(item_listing(i), service.settings.usd_zar_rate), 2),
+             "payment_method": "shopify_checkout", "payment_label": PAYMENT_METHODS["shopify_checkout"],
+             "registration_id": i.get("registration_id"), "nft": None, "status": "awaiting_payment",
+             "created_at": now_iso(), "events": [], "tracking": None,
+             "checkout": {"id": checkout.get("id"), "status": checkout.get("status"),
+                          "continue_url": checkout["continue_url"], "total": total},
+             "ownership": ("An ownership NFT is minted to you when the store reports the order paid."
+                           if v.get("partner") else
+                           "This store isn't a GlobalChain partner, so no ownership NFT is issued.")}
+    service.store.put("order", order["order_id"], order)
+    return order
+
+
+async def prepare_order(service, item_id: str, payment_method: str, conversation_id: str | None = None) -> dict:
     """A quote awaiting the shopper's confirmation. Nothing is paid or transferred yet."""
     if payment_method not in PAYMENT_METHODS:
         raise ValueError(f"payment_method must be one of {', '.join(PAYMENT_METHODS)}")
@@ -60,6 +87,8 @@ def prepare_order(service, item_id: str, payment_method: str, conversation_id: s
     v = vendor(service.store, i["vendor_id"])
     if i["status"] != "available":
         raise ValueError(f"{i['title']} is no longer available")
+    if v.get("kind") == "shopify":
+        return await _shopify_order(service, i, v, conversation_id)
     if not v["verified"] or not i.get("nft"):
         raise ValueError(f"{v['name']} is not a verified vendor holding this item's NFT; GlobalChain won't settle it")
     method = payment_method if payment_method in v["seller"].get("payment_methods", []) else None
@@ -81,6 +110,8 @@ async def pay(service, order_id: str) -> dict:
     order = get_order(service, order_id)
     if order["status"] != "awaiting_payment":
         return order  # idempotent: a second click does not pay twice
+    if order["payment_method"] == "shopify_checkout":
+        raise ValueError(f"Pay on the store's checkout: {order['checkout']['continue_url']}")
     i = item(service.store, order["item_id"])
     if i["status"] != "available":
         raise ValueError("This item was sold to someone else")

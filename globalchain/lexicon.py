@@ -5,7 +5,9 @@ import re
 # Sellers of fakes frequently describe them openly in trade slang.
 COUNTERFEIT_TERMS = [
     "replica", "rep ", "1:1", "mirror quality", "mirror grade", "aaa", "first copy", "master copy",
-    "inspired", "dupe", "same as original", "factory direct", "unbranded original",
+    # "inspired" alone is ordinary copywriting ("inspired by rainy commutes"); these phrasings aren't.
+    "designer inspired", "designer-inspired", "luxury inspired", "inspired version",
+    "dupe", "same as original", "factory direct", "unbranded original",
 ]
 
 # Pushes to move the deal off-platform or to irreversible payment.
