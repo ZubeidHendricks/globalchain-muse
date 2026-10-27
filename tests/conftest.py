@@ -8,6 +8,8 @@ os.environ["MODEL_API_KEY"] = ""
 os.environ["OPERATOR_ID"] = ""
 os.environ["OPERATOR_KEY"] = ""
 os.environ["SHOPIFY_STORES"] = ""  # tests that need a store use a fake UCP transport
+os.environ["SHOPIFY_API_KEY"] = ""
+os.environ["SHOPIFY_API_SECRET"] = ""
 os.environ["DATABASE_PATH"] = os.path.join(tempfile.mkdtemp(), "app.db")
 
 
@@ -16,7 +18,7 @@ def settings(tmp_path):
     from globalchain.config import Settings
 
     return Settings(model_api_key=None, operator_id=None, operator_key=None, shopify_stores="",
-                    database_path=str(tmp_path / "test.db"))
+                    shopify_api_key=None, shopify_api_secret=None, database_path=str(tmp_path / "test.db"))
 
 
 @pytest.fixture

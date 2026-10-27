@@ -216,3 +216,9 @@ def test_webhook_endpoint_checks_shopify_signature(client, service):
     unknown = client.post("/shopify/webhooks/orders-paid", content=body,
                           headers={**headers, "X-Shopify-Hmac-Sha256": _webhook_sig(body)})
     assert unknown.status_code == 404  # signed correctly, but the store never installed
+
+
+def test_opening_the_app_from_shopify_starts_install(client):
+    r = client.get("/", params={"shop": SHOP, "hmac": "x", "host": "y"}, follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == f"/shopify/install?shop={SHOP}"
+    assert client.get("/").status_code == 200

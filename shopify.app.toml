@@ -1,0 +1,18 @@
+# Shopify CLI config for the GlobalChain partner app. `shopify app dev` replaces the URLs below with
+# its tunnel and releases a dev version; `shopify app deploy` releases these values as they are.
+client_id = "87c4da1bbbed2ff5d6a90956e8e40ac3"
+name = "globalchain-muse"
+application_url = "https://example.com/shopify/install"
+embedded = false
+
+[access_scopes]
+scopes = "read_products,read_orders"
+
+[auth]
+redirect_urls = ["https://example.com/shopify/callback"]
+
+[webhooks]
+api_version = "2026-10"
+
+[build]
+automatically_update_urls_on_dev = true

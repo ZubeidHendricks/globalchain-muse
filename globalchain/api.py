@@ -5,7 +5,7 @@ import contextlib
 import logging
 from pathlib import Path
 from typing import Literal
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 
 from fastapi import APIRouter, Cookie, FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
@@ -193,7 +193,9 @@ async def demo_shop(req: ShopRequest) -> dict:
 
 
 @router.get("/", include_in_schema=False)
-async def index():
+async def index(shop: str | None = None):
+    if shop:  # Shopify opens the app URL with ?shop= on install and from the store admin
+        return RedirectResponse(f"/shopify/install?{urlencode({'shop': shop})}", status_code=303)
     return FileResponse(_STATIC / "index.html")
 
 
@@ -220,6 +222,10 @@ async def shopify_install(shop: str):
 
 
 @router.get("/shopify/callback", include_in_schema=False)
+# Shopify CLI's dev URL update writes these default callback paths.
+@router.get("/auth/callback", include_in_schema=False)
+@router.get("/auth/shopify/callback", include_in_schema=False)
+@router.get("/api/auth/callback", include_in_schema=False)
 async def shopify_callback(request: Request):
     try:
         v = await shopify_app.complete_install(get_service(), dict(request.query_params))
