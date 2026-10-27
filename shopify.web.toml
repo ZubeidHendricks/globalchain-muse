@@ -1,4 +1,4 @@
-# How `shopify app dev` runs the server. The CLI sets PORT, SHOPIFY_APP_URL (its tunnel),
+# How `shopify app dev` runs the server. The CLI sets PORT, APP_URL and HOST (its tunnel),
 # SHOPIFY_API_KEY and SHOPIFY_API_SECRET.
 name = "globalchain"
 roles = ["frontend", "backend"]
