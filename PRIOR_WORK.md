@@ -32,3 +32,8 @@ Listed as it lands, newest last.
   calling, with a guardrail on its recommendations and a scripted fallback. Replaces the scripted demo.
 - **Oct 27 · Hedera testnet live**: registrations, NFT certificates and verification records running
   on testnet (topic `0.0.11188588`, certificate collection `0.0.11188589`).
+- **Oct 27 · Agent-to-agent commerce** (`vendors.py`, `orders.py`, `ledger.py`, `/track/{order_id}`). The
+  shopper's Muse agent broadcasts a need to vendors' Muse agents, which pitch from their own catalogues
+  in signed envelopes; it checks signatures and NFT ownership on Hedera, verifies and ranks offers, and
+  prepares the order the shopper asks for. Paying in tUSDC swaps payment and the item's NFT in one
+  atomic Hedera transaction; the vendor's agent then ships, with each step anchored on HCS.

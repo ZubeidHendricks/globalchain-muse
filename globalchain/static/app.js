@@ -67,6 +67,7 @@ function card(result) {
           ${listing.currency !== "USD" ? `<div class="muted">≈ $${result.price_usd}</div>` : ""}
         </div>
       </div>
+      ${result.offer ? offerChecks(result.offer) : ""}
       <p><span class="rec ${result.recommendation}">${REC[result.recommendation]}</span> <span class="muted">${esc(result.reason)}</span></p>
       <div class="scores">
         <div class="meter"><div class="label">Product · ${VERDICT[product.verdict]} · ${product.confidence} confidence</div>
@@ -85,9 +86,11 @@ function card(result) {
       <h3>Seller</h3>
       <p style="margin:0 0 6px">${esc(risk.explanation)}</p>
       <ul class="findings">${signals}</ul>
-      <div class="actions">
-        <button class="${result.recommendation === "avoid" ? "" : "primary"}" data-decision="approved">Approve purchase</button>
-        <button class="${result.recommendation === "avoid" ? "primary" : ""}" data-decision="skipped">Skip</button>
+      <div class="actions">${result.offer
+        ? (result.status === "sold" ? `<span class="muted">Sold.</span>`
+          : `<button class="${result.recommendation === "avoid" ? "" : "primary"}" data-get>Ask my agent to get this</button>`)
+        : `<button class="${result.recommendation === "avoid" ? "" : "primary"}" data-decision="approved">Approve purchase</button>
+        <button class="${result.recommendation === "avoid" ? "primary" : ""}" data-decision="skipped">Skip</button>`}
       </div>
       <div class="record" hidden></div>
     </div>`;
@@ -102,6 +105,11 @@ function card(result) {
     el.querySelectorAll(".thumbs img").forEach((x) => x.classList.toggle("on", x === t));
   }));
   el.querySelectorAll("[data-decision]").forEach((b) => b.addEventListener("click", () => decide(el, result, b.dataset.decision)));
+  el.querySelector("[data-get]")?.addEventListener("click", () => {
+    $("#query").value = `Get me the ${result.listing.title} from ${result.offer.vendor}, pay with crypto`;
+    $("#query").focus();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
   return el;
 }
 
@@ -138,15 +146,90 @@ async function decide(el, result, decision) {
 }
 
 const PROMPTS = {
-  shop: "Find me an authentic Coach Tabby under $800",
+  shop: "I need a bag for everyday use, under $400",
   make: "I'm Lerato Dlamini from Johannesburg. Register my Coach Tabby 26 bag and list it for R5,200.",
 };
 const DEMO_PHOTOS = ["tabby-a-1", "tabby-a-2", "tabby-b-1", "tabby-b-2", "jetset-c-1", "tabby-d-1"].map((n) => `/static/demo/${n}.png`);
 let mode = "shop";
+const sessions = { shop: null, make: null };
+const CHECK = {
+  verified: ["authentic", "Verified vendor"], unverified: ["counterfeit", "Unverified vendor"],
+  invalid_signature: ["counterfeit", "Bad signature"],
+};
+const NFT = {
+  owned: ["authentic", "Holds the item's NFT"], cloned: ["counterfeit", "Copied QR: NFT belongs to someone else"],
+  no_registration: ["neutral", "No origin record"], no_nft: ["neutral", "No NFT"], not_held: ["counterfeit", "NFT not held"],
+};
+
+function offerChecks(o) {
+  const [vc, vl] = CHECK[o.vendor_check] || ["neutral", o.vendor_check];
+  const [nc, nl] = NFT[o.nft] || ["neutral", o.nft];
+  return `<div class="checks"><span class="chip ${vc}" title="${esc(o.vendor_detail)}">${vl}</span>
+    <span class="chip ${nc}" title="${esc(o.nft_detail)}">${nl}</span></div>
+    <blockquote class="pitch">“${esc(o.pitch)}” <span class="muted">— ${esc(o.vendor)}'s agent</span></blockquote>`;
+}
+
+const KIND = { request: "asks everyone", pitch: "pitches", question: "asks", answer: "answers", order: "orders", status: "updates" };
+
+function transcript(messages) {
+  if (!messages.length) return "";
+  const rows = messages.map((m) => {
+    const b = m.body || {};
+    const text = b.need ? `“${b.need}”${b.budget_usd ? ` · budget $${b.budget_usd}` : ""}`
+      : b.offers ? (b.offers.length ? `${b.offers.length} offer(s). ${b.message || ""}` : (b.message || "nothing to offer"))
+      : b.question || b.answer || b.message || (b.order_id ? `order ${b.order_id}` : "");
+    const sig = m.from === "shopper" ? "" : m.signature
+      ? `<span class="chip authentic" title="Signed by ${esc(m.signer)}">signed ${esc(m.signer)}</span>`
+      : `<span class="chip counterfeit">unsigned</span>`;
+    return `<li><span class="who">${esc(m.from_name || m.from)}</span>
+      ${esc(KIND[m.type] || m.type)} ${sig}<div class="muted">${esc(text)}</div></li>`;
+  }).join("");
+  return `<details class="a2a" open><summary>Agent-to-agent messages (${messages.length})</summary><ul>${rows}</ul></details>`;
+}
+
+function orderCard(o) {
+  const el = document.createElement("article");
+  el.className = "card order";
+  el.style.gridTemplateColumns = "120px 1fr";
+  el.innerHTML = `<div><img src="${esc(o.photo)}" alt="" style="width:100%;border-radius:8px"></div>
+    <div><div class="head"><div><h2>${esc(o.title)}</h2><div class="muted">from ${esc(o.vendor_name)} · ${esc(o.payment_label)}</div></div>
+      <div class="price">$${o.amount_usd.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div></div>
+      <p class="muted">Your agent prepared this order. Nothing is paid until you confirm. When you do, the item's NFT moves to your wallet before it ships.</p>
+      <div class="actions"><button class="primary" data-pay>Confirm &amp; pay</button></div>
+      <div class="record" hidden></div></div>`;
+  $("[data-pay]", el).addEventListener("click", async (e) => {
+    e.target.disabled = true;
+    const box = $(".record", el);
+    box.hidden = false;
+    box.textContent = "Settling on Hedera…";
+    try {
+      const t = await api(`/v1/orders/${o.order_id}/pay`, {});
+      box.innerHTML = `<strong>${t.owned_by_you ? "The item is yours." : "Paid."}</strong> ${esc(t.settlement.detail)}
+        <dl><dt>NFT owner on ${t.simulated_ledger ? "the simulated ledger" : "Hedera"}</dt><dd class="mono">${esc(t.on_chain_owner)}</dd>
+        ${t.settlement.explorer_url ? `<dt>Transaction</dt><dd><a href="${esc(t.settlement.explorer_url)}" target="_blank" rel="noopener">HashScan</a></dd>` : ""}
+        <dt>Track it</dt><dd><a href="/track/${esc(o.order_id)}">/track/${esc(o.order_id)}</a></dd></dl>`;
+      refreshWallet();
+    } catch (err) {
+      box.textContent = `Payment failed: ${err.message}`;
+      e.target.disabled = false;
+    }
+  });
+  return el;
+}
+
+async function refreshWallet() {
+  try {
+    const w = await api("/v1/wallet");
+    const owned = w.owned.length ? ` · owns ${w.owned.length} item(s)` : "";
+    $("#wallet").innerHTML = `Wallet <span class="mono">${esc(w.wallet.account_id)}</span> · ${w.balance_tusdc ?? "?"} tUSDC${owned}`;
+    $("#wallet").hidden = false;
+  } catch { /* the wallet appears once the network is seeded */ }
+}
 const picked = new Set(DEMO_PHOTOS.slice(0, 2));
 
 function setMode(m) {
   mode = m;
+  $("#reset").hidden = !sessions[m];
   document.querySelectorAll("[data-mode]").forEach((b) => b.classList.toggle("on", b.dataset.mode === m));
   $("#query").value = PROMPTS[m];
   $("#picker").hidden = m !== "make";
@@ -186,7 +269,7 @@ function registrationCard(reg, listing) {
     <dl class="record">
       <dt>Hedera record</dt><dd>${a.status === "anchored" ? `topic ${esc(a.topic_id)} #${a.sequence_number} · <a href="${esc(a.explorer_url)}" target="_blank" rel="noopener">HashScan</a>` : esc(a.detail || a.status)}</dd>
       <dt>NFT certificate</dt><dd>${c.status === "minted" ? `${esc(c.token_id)} #${c.serial_number} · <a href="${esc(c.explorer_url)}" target="_blank" rel="noopener">HashScan</a>` : esc(c.detail || c.status)}</dd>
-      ${listing ? `<dt>Listed for sale</dt><dd>${esc(listing.listing_id)} · ${price(listing)}. Switch to the shopper agent to find it.</dd>` : ""}
+      ${listing ? `<dt>Listed on the agent network</dt><dd>${esc(listing.listing_id)} · ${price(listing)} · NFT in your wallet <span class="mono">${esc(listing.wallet)}</span>. Your vendor agent now pitches it to shoppers' agents.</dd>` : ""}
     </dl></div>`;
   return el;
 }
@@ -196,15 +279,21 @@ $("#ask").addEventListener("submit", async (e) => {
   $("#go").disabled = true;
   $("#trace").innerHTML = "";
   $("#results").innerHTML = "";
+  $("#a2a")?.remove();
   $("#answer").hidden = true;
   trace(`${mode === "shop" ? "Shopper" : "Maker"} agent is working…`);
   try {
-    const data = await api("/demo/agent", { mode, message: $("#query").value, photos: mode === "make" ? [...picked] : [] });
+    const data = await api("/demo/agent", { mode, message: $("#query").value, photos: mode === "make" ? [...picked] : [],
+                                            session_id: sessions[mode] });
+    sessions[mode] = data.session_id;
+    $("#reset").hidden = false;
     $("#trace").innerHTML = "";
     trace(`<span class="muted">${esc(data.engine === "mock" ? "Scripted policy (no MODEL_API_KEY)" : `Driven by ${data.model}`)} · ${data.tool_calls} tool call(s)</span>`);
     data.trace.forEach((t) => trace(step(t)));
     $("#answer").hidden = false;
     $("#answer").textContent = data.answer;
+    if (data.conversation?.length) $("#trace").insertAdjacentHTML("afterend", `<div id="a2a">${transcript(data.conversation)}</div>`);
+    data.orders.forEach((o) => $("#results").append(orderCard(o)));
     if (data.registration) $("#results").append(registrationCard(data.registration, data.listing));
     data.results.forEach((r) => {
       const el = card(r);
@@ -215,12 +304,24 @@ $("#ask").addEventListener("submit", async (e) => {
     trace(`Failed: ${esc(err.message)}`);
   } finally {
     $("#go").disabled = false;
+    refreshWallet();
   }
+});
+
+$("#reset").addEventListener("click", () => {
+  sessions[mode] = null;
+  setMode(mode);
+  $("#trace").innerHTML = "";
+  $("#results").innerHTML = "";
+  $("#a2a")?.remove();
+  $("#answer").hidden = true;
+  $("#reset").hidden = true;
 });
 
 document.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
 renderPicker();
 setMode("shop");
+refreshWallet();
 
 api("/healthz").then((h) => {
   const tag = $("#engine");

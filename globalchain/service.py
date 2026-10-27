@@ -9,6 +9,7 @@ from functools import lru_cache
 from .certificates import Minter, NullMinter, build_minter
 from .config import Settings, get_settings
 from .engine import Engine, build_engine
+from .ledger import Ledger, SimulatedLedger, build_ledger
 from .provenance import Anchorer, build_anchorer, check_provenance, issue_verification_record
 from .registry import get_registration, register_product, registration_crop
 from .schemas import (
@@ -28,12 +29,13 @@ from .verify import verify_product
 
 class GlobalChain:
     def __init__(self, settings: Settings, engine: Engine, store: Store, anchorer: Anchorer,
-                 minter: Minter | None = None):
+                 minter: Minter | None = None, ledger: Ledger | None = None):
         self.settings = settings
         self.engine = engine
         self.store = store
         self.anchorer = anchorer
         self.minter = minter or NullMinter()
+        self.ledger = ledger or SimulatedLedger(store)
 
     async def verify_product(self, listing: Listing) -> ProductVerification:
         return await verify_product(listing, self.engine, self.store, self.settings)
@@ -67,5 +69,6 @@ class GlobalChain:
 @lru_cache
 def get_service() -> GlobalChain:
     settings = get_settings()
-    return GlobalChain(settings, build_engine(settings), Store(settings.database_path),
-                       build_anchorer(settings), build_minter(settings))
+    store = Store(settings.database_path)
+    return GlobalChain(settings, build_engine(settings), store, build_anchorer(settings), build_minter(settings),
+                       build_ledger(settings, store))

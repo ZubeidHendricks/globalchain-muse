@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Order Tracking</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%227%22 fill=%22%231f5c4a%22/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Your item</h1>
+      <div class="muted mono" id="key"></div>
+    </div>
+    <a href="/">GlobalChain</a>
+  </header>
+  <section id="order"><p class="muted">Loading…</p></section>
+  <p class="disclaimer">
+    You own the item from the moment you pay: its NFT moved to your wallet before it shipped. Each step below
+    is anchored on Hedera against that NFT. Payments other than tUSDC, and the courier, are simulated in this demo.
+  </p>
+</main>
+<script>
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const id = decodeURIComponent(location.pathname.split("/").pop());
+document.getElementById("key").textContent = id;
+const LABEL = { owned: "Paid · NFT is yours", preparing: "Vendor preparing", shipped: "Shipped", out_for_delivery: "Out for delivery", delivered: "Delivered" };
+
+function link(url, text) {
+  return url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(text)}</a>` : esc(text);
+}
+
+function render(o) {
+  const nft = o.nft ? `${o.nft.token_id} #${o.nft.serial}` : "none";
+  const owner = o.owned_by_you
+    ? `<span class="rec recommended">Owned by you</span> <span class="mono">${esc(o.on_chain_owner)}</span>`
+    : `<span class="rec caution">Not yours yet</span> <span class="mono">${esc(o.on_chain_owner || "")}</span>`;
+  const events = o.events.map((e) => {
+    const a = e.anchor || {};
+    const chain = a.status === "anchored" ? `HCS ${esc(a.topic_id)} #${a.sequence_number} · ${link(a.explorer_url, "HashScan")}` : esc(a.status || "");
+    const tx = e.tx && e.tx.explorer_url ? ` · ${link(e.tx.explorer_url, "transaction")}` : e.tx && e.tx.simulated ? " · simulated" : "";
+    return `<li><span class="chip authentic">${esc(LABEL[e.status] || e.status)}</span>
+      <span>${esc(e.detail)}<div class="muted">${esc(e.at.replace("T", " ").slice(0, 16))} · ${chain}${tx}</div></span></li>`;
+  }).join("");
+  const done = o.status === "delivered";
+  document.getElementById("order").innerHTML = `<article class="card">
+    <div><div class="photo"><img src="${esc(o.photo)}" alt="${esc(o.title)}"></div></div>
+    <div>
+      <div class="head"><div><h2>${esc(o.title)}</h2><div class="muted">from ${esc(o.vendor_name)} · ${esc(o.payment_label)}</div></div>
+        <div class="price">$${o.amount_usd.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div></div>
+      <p>${owner}</p>
+      <dl class="record">
+        <dt>NFT</dt><dd class="mono">${o.nft_url ? link(o.nft_url, nft) : esc(nft)}${o.simulated_ledger ? " (simulated ledger)" : ""}</dd>
+        <dt>Settlement</dt><dd>${o.settlement ? `${esc(o.settlement.detail)}${o.settlement.explorer_url ? " · " + link(o.settlement.explorer_url, "HashScan") : ""}` : "awaiting payment"}</dd>
+        ${o.tracking ? `<dt>Courier</dt><dd>${esc(o.tracking.carrier)} · <span class="mono">${esc(o.tracking.number)}</span></dd>` : ""}
+        ${o.registration_id ? `<dt>Origin</dt><dd><a href="/origin/${esc(o.registration_id)}">${esc(o.registration_id)}</a></dd>` : ""}
+      </dl>
+      <h3>Journey</h3>
+      <ul class="findings">${events || `<li><span class="muted">Not paid yet.</span></li>`}</ul>
+      <div class="actions">${o.status !== "awaiting_payment" && !done ? `<button id="next">Vendor agent: next step (demo)</button>` : ""}</div>
+    </div></article>`;
+  const btn = document.getElementById("next");
+  if (btn) btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    const res = await fetch(`/v1/orders/${encodeURIComponent(id)}/advance`, { method: "POST" });
+    render(await res.json());
+  });
+}
+
+fetch(`/v1/orders/${encodeURIComponent(id)}`).then(async (res) => {
+  if (!res.ok) { document.getElementById("order").innerHTML = "<p>No order with this id.</p>"; return; }
+  render(await res.json());
+});
+</script>
+</body>
+</html>

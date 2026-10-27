@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     verify_model: str | None = None
     seller_model: str | None = None
     agent_model: str | None = None
+    vendor_model: str | None = None
     sam_model: str = "sam-3.1"
     reasoning_effort: str = "medium"
 
@@ -27,6 +28,8 @@ class Settings(BaseSettings):
     # Origin registrations can also mint an HTS NFT certificate (needs the operator above).
     mint_certificates: bool = True
     hedera_nft_token_id: str | None = None
+    # tUSDC, the test stablecoin agent purchases settle in (created on first use if unset).
+    hedera_payment_token_id: str | None = None
 
     database_path: str = "globalchain.db"
     public_base_url: str = "http://localhost:8000"

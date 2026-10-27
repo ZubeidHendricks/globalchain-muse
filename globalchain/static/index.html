@@ -12,18 +12,20 @@
   <header>
     <div>
       <h1>GlobalChain Muse</h1>
-      <div class="muted">Makers register items at origin. Shoppers' agents check every resale against it.</div>
+      <div class="muted">Your Muse agent talks to vendors' agents, checks every pitch on Hedera, and buys the item's NFT for you.</div>
     </div>
+    <span id="wallet" class="tag" hidden></span>
     <span id="engine" class="tag">connecting…</span>
   </header>
 
   <div class="modes" role="tablist">
-    <button type="button" role="tab" data-mode="make">1 · Maker agent</button>
-    <button type="button" role="tab" data-mode="shop" class="on">2 · Shopper agent</button>
+    <button type="button" role="tab" data-mode="shop" class="on">My shopping agent</button>
+    <button type="button" role="tab" data-mode="make">Maker agent</button>
   </div>
   <form class="ask" id="ask">
     <input id="query" aria-label="Message to the agent">
-    <button class="primary" id="go">Ask agent</button>
+    <button type="button" id="reset" hidden>New chat</button>
+    <button class="primary" id="go">Send</button>
   </form>
   <div class="picker" id="picker" hidden></div>
 

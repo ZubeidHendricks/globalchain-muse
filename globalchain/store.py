@@ -35,12 +35,14 @@ CREATE TABLE IF NOT EXISTS registrations (
     crops TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
--- Listings the maker agent puts up for sale in the demo marketplace.
-CREATE TABLE IF NOT EXISTS market_listings (
-    id TEXT PRIMARY KEY,
-    listing TEXT NOT NULL,
-    seller TEXT NOT NULL,
-    created_at TEXT NOT NULL
+-- Agent commerce: wallets, vendors, catalogue items, orders and agent-to-agent messages, as JSON docs.
+CREATE TABLE IF NOT EXISTS docs (
+    kind TEXT NOT NULL,
+    id TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (kind, id)
 );
 """
 
@@ -129,13 +131,19 @@ class Store:
         ).fetchall()
         return [self._row(r) for r in rows]
 
-    def save_market_listing(self, listing_id: str, listing: dict, seller: dict) -> None:
+    def put(self, kind: str, doc_id: str, payload: dict) -> None:
+        now = now_iso()
         with self._lock, self._conn:
             self._conn.execute(
-                "INSERT INTO market_listings (id, listing, seller, created_at) VALUES (?, ?, ?, ?)",
-                (listing_id, json.dumps(listing), json.dumps(seller), now_iso()),
+                "INSERT INTO docs (kind, id, payload, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
+                " ON CONFLICT(kind, id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at",
+                (kind, doc_id, json.dumps(payload), now, now),
             )
 
-    def market_listings(self) -> list[tuple[str, dict, dict]]:
-        rows = self._conn.execute("SELECT * FROM market_listings ORDER BY created_at, rowid").fetchall()
-        return [(r["id"], json.loads(r["listing"]), json.loads(r["seller"])) for r in rows]
+    def get(self, kind: str, doc_id: str) -> dict | None:
+        row = self._conn.execute("SELECT payload FROM docs WHERE kind = ? AND id = ?", (kind, doc_id)).fetchone()
+        return json.loads(row["payload"]) if row else None
+
+    def all(self, kind: str) -> list[dict]:
+        rows = self._conn.execute("SELECT payload FROM docs WHERE kind = ? ORDER BY created_at, rowid", (kind,))
+        return [json.loads(r["payload"]) for r in rows.fetchall()]

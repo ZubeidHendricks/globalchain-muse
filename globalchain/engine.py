@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 
 
 # Muse Spark reasoning tasks; each can run on its own model (see Settings.verify_model / seller_model).
-TASKS = ("verify", "seller", "register", "agent")
+TASKS = ("verify", "seller", "register", "agent", "vendor")
 
 
 class Engine(Protocol):
@@ -65,6 +65,7 @@ class MetaEngine:
             "seller": settings.seller_model or settings.muse_model,
             "register": settings.muse_model,
             "agent": settings.agent_model or settings.muse_model,
+            "vendor": settings.vendor_model or settings.muse_model,
             "segmentation": settings.sam_model,
         }
         self._sam_slots = asyncio.Semaphore(6)
@@ -133,7 +134,7 @@ class MockEngine:
 
     name = "mock"
     models = {"verify": "mock-reasoner", "seller": "mock-reasoner", "register": "mock-reasoner",
-              "agent": "scripted-agent", "segmentation": "mock-segmenter"}
+              "agent": "scripted-agent", "vendor": "mock-reasoner", "segmentation": "mock-segmenter"}
 
     async def segment(self, image_data_url: str, prompt: str, frame_size: tuple[int, int]) -> str:
         # Deterministic pseudo-box per (image, prompt), emitted in SAM 3.1's grammar

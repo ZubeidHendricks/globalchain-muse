@@ -1,0 +1,67 @@
+{
+  "_note": "Demo vendors. Verified vendors get a Hedera wallet, register every item at origin and hold each item's NFT. LuxDeals is not verified and copies another item's registration id.",
+  "buyer": {"label": "Shopper wallet", "fund_usd": 1500},
+  "vendors": [
+    {
+      "vendor_id": "v_thandi_closet",
+      "name": "Thandi's Closet",
+      "country": "ZA",
+      "verified": true,
+      "persona": "A Johannesburg reseller of pre-loved designer bags with four years of five-star sales. Warm, precise, never oversells, always mentions condition honestly.",
+      "seller": {"seller_id": "seller-thandi-closet", "name": "Thandi's Closet", "account_age_days": 1460, "rating": 4.8, "review_count": 212,
+                 "recent_reviews": ["Exactly as described, beautifully packed.", "Second purchase from Thandi, quick courier delivery.", "Bag was in great condition and came with the dust bag."],
+                 "active_listings": 14, "ships_from": "Johannesburg, ZA", "payment_methods": ["crypto", "card", "eft", "mobile_money"]},
+      "items": [
+        {"key": "tabby", "title": "Coach Tabby 26 Shoulder Bag, pebble leather, pre-loved", "brand": "Coach", "model": "Tabby 26", "category": "handbag",
+         "description": "Bought at the Sandton City Coach store in 2024, used a handful of times. Fits a phone, wallet and keys; detachable strap for crossbody wear. Creed patch and style number inside, dust bag and receipt included.",
+         "price": 295, "currency": "USD", "photos": ["/static/demo/tabby-a-1.png", "/static/demo/tabby-a-2.png"]}
+      ]
+    },
+    {
+      "vendor_id": "v_capetown_finds",
+      "name": "Cape Town Finds",
+      "country": "ZA",
+      "verified": true,
+      "persona": "A small Cape Town shop selling new and gifted bags. Friendly and quick, focused on practical everyday use and value.",
+      "seller": {"seller_id": "seller-capetown-finds", "name": "Cape Town Finds", "account_age_days": 75, "rating": 4.1, "review_count": 8,
+                 "recent_reviews": ["Nice bag but I'm not sure it's original, the label looked off.", "Fast delivery.", "Friendly seller."],
+                 "active_listings": 22, "ships_from": "Cape Town, ZA", "payment_methods": ["crypto", "card", "eft"]},
+      "items": [
+        {"key": "jetset", "title": "Michael Kors Jet Set Travel Tote, new with tags", "brand": "Michael Kors", "model": "Jet Set Travel Tote", "category": "tote",
+         "description": "Brand new Jet Set tote, never used. Roomy enough for a laptop sleeve, water bottle and daily essentials; zip top.",
+         "price": 79, "currency": "USD", "photos": ["/static/demo/jetset-c-1.png"]}
+      ]
+    },
+    {
+      "vendor_id": "v_outlet_imports",
+      "name": "Outlet Imports",
+      "country": "ZA",
+      "verified": true,
+      "persona": "A Durban importer of boxed outlet stock. Formal and brief; quotes list prices and does not negotiate.",
+      "seller": {"seller_id": "seller-outlet-imports", "name": "Outlet Imports", "account_age_days": 900, "rating": 4.6, "review_count": 88,
+                 "recent_reviews": ["Pricey but legit.", "Good packaging."], "active_listings": 40, "ships_from": "Durban, ZA",
+                 "payment_methods": ["crypto", "card"]},
+      "items": [
+        {"key": "tabby_canvas", "title": "Coach Tabby 26 with signature canvas, boxed", "brand": "Coach", "model": "Tabby 26", "category": "handbag",
+         "description": "Brand new from the US outlet, receipt included. Signature canvas with leather trim.",
+         "price": 1100, "currency": "USD", "photos": ["/static/demo/tabby-d-1.png"]}
+      ]
+    },
+    {
+      "vendor_id": "v_luxdeals",
+      "name": "LuxDeals ZA",
+      "country": null,
+      "verified": false,
+      "persona": "A high-volume seller of 'mirror quality' designer copies. Pushy, uses urgency, prefers EFT and WhatsApp.",
+      "seller": {"seller_id": "seller-luxdeals-za", "name": "LuxDeals ZA", "account_age_days": 12, "rating": 5.0, "review_count": 3,
+                 "recent_reviews": ["Great seller fast delivery!!", "Great seller fast delivery!!", "Great seller fast delivery!!"],
+                 "active_listings": 140, "ships_from": "Unknown", "payment_methods": ["eft"]},
+      "items": [
+        {"key": "tabby_copy", "title": "Coach Tabby 26 bag mirror quality 1:1, brand new", "brand": "Coach", "model": "Tabby 26", "category": "handbag",
+         "description": "Top quality 1:1, looks same as original. Comes with QR code and certificate. Limited stock, today only price. WhatsApp me for more pics, EFT only.",
+         "price": 1650, "currency": "ZAR", "photos": ["/static/demo/tabby-b-1.png", "/static/demo/tabby-b-2.png"],
+         "copies_registration_of": "v_thandi_closet:tabby"}
+      ]
+    }
+  ]
+}
