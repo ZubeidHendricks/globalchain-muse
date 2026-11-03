@@ -105,8 +105,12 @@ async def prepare_order(service, item_id: str, payment_method: str, conversation
     return order
 
 
-async def pay(service, order_id: str) -> dict:
-    """Run only on the shopper's explicit confirmation. Settles payment and hands over the NFT."""
+async def pay(service, order_id: str, payer: str | None = None, recipient: str | None = None) -> dict:
+    """Run only on the shopper's explicit confirmation. Settles payment and hands over the NFT.
+
+    payer is the paying wallet's account (the shopper's demo wallet by default; an agent wallet for
+    buy_with_agent_wallet) and recipient the account the NFT goes to (the payer by default).
+    """
     order = get_order(service, order_id)
     if order["status"] != "awaiting_payment":
         return order  # idempotent: a second click does not pay twice
@@ -116,13 +120,17 @@ async def pay(service, order_id: str) -> dict:
     if i["status"] != "available":
         raise ValueError("This item was sold to someone else")
     v = vendor(service.store, order["vendor_id"])
-    buyer = service.store.get("wallet", BUYER_WALLET)
-    seller_acct, buyer_acct = v["wallet"]["account_id"], buyer["account_id"]
+    seller_acct = v["wallet"]["account_id"]
+    payer_acct = payer or service.store.get("wallet", BUYER_WALLET)["account_id"]
+    buyer_acct = recipient or payer_acct
     token, serial = order["nft"]["token_id"], order["nft"]["serial"]
 
     if order["payment_method"] == "crypto":
-        tx = await service.ledger.swap(token, serial, seller_acct, buyer_acct, order["amount_usd"])
-        paid_detail = f"Paid {order['amount_usd']:.2f} tUSDC and received NFT {nft_ref(token, serial)} in one transaction"
+        tx = await service.ledger.swap(token, serial, seller_acct, payer_acct, order["amount_usd"], receiver=buyer_acct)
+        paid_detail = (f"Paid {order['amount_usd']:.2f} tUSDC and received NFT {nft_ref(token, serial)} in one transaction"
+                       if buyer_acct == payer_acct else
+                       f"{payer_acct} paid {order['amount_usd']:.2f} tUSDC and NFT {nft_ref(token, serial)} went to "
+                       f"{buyer_acct}, in one transaction")
     else:
         # Simulated off-chain rail: once "settled", the vendor's NFT moves to the shopper.
         tx = await service.ledger.transfer_nft(token, serial, seller_acct, buyer_acct)
@@ -140,6 +148,7 @@ async def pay(service, order_id: str) -> dict:
     order["status"] = "owned"
     order["settlement"] = tx.model_dump()
     order["owner"] = buyer_acct
+    order["payer"] = payer_acct
     event = _event(order, "owned", paid_detail, tx.model_dump())
     await _anchor(service, order, event)
     order["events"].append(event)
@@ -181,6 +190,7 @@ async def track(service, order_id: str) -> dict:
     owner = await service.ledger.nft_owner(nft["token_id"], nft["serial"]) if nft else None
     buyer = service.store.get("wallet", BUYER_WALLET) or {}
     return {**order, "on_chain_owner": owner, "owned_by_you": bool(owner and owner == buyer.get("account_id")),
+            "owned_by_recipient": bool(owner and owner == order.get("owner")),
             "simulated_ledger": service.ledger.simulated,
             "nft_url": (f"{service.settings.hashscan_base}/token/{nft['token_id']}/{nft['serial']}"
                         if nft and not service.ledger.simulated else None)}

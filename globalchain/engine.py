@@ -11,6 +11,7 @@ import json
 import logging
 import re
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Any, Protocol
 
 from openai import APIError, AsyncOpenAI, BadRequestError
@@ -50,6 +51,25 @@ def extract_json(text: str) -> dict | None:
     return None
 
 
+class BudgetExceeded(Exception):
+    """The day's Model API call budget is spent. Callers fall back to rules, as for any failed call."""
+
+
+class DailyBudget:
+    """Counts Model API calls per UTC day, so a public demo can't run up the Model API bill."""
+
+    def __init__(self, limit: int):
+        self.limit, self.day, self.used = limit, "", 0
+
+    def spend(self) -> None:
+        today = datetime.now(UTC).date().isoformat()
+        if today != self.day:
+            self.day, self.used = today, 0
+        if self.limit and self.used >= self.limit:
+            raise BudgetExceeded(f"today's {self.limit} Model API calls are used up")
+        self.used += 1
+
+
 class MetaEngine:
     name = "meta"
 
@@ -70,8 +90,10 @@ class MetaEngine:
         }
         self._sam_slots = asyncio.Semaphore(6)
         self._json_mode = True
+        self.budget = DailyBudget(settings.model_calls_per_day)
 
     async def segment(self, image_data_url: str, prompt: str, frame_size: tuple[int, int]) -> str:
+        self.budget.spend()
         async with self._sam_slots:
             resp = await self.client.responses.create(
                 model=self.settings.sam_model,
@@ -101,6 +123,11 @@ class MetaEngine:
         if self._json_mode and schema:
             kwargs["response_format"] = {"type": "json_schema", "json_schema": schema}
         try:
+            self.budget.spend()
+        except BudgetExceeded as exc:
+            log.warning("Muse Spark not called (%s); using rule-based fallback", exc)
+            return fallback(), True
+        try:
             try:
                 resp = await self.client.chat.completions.create(**kwargs)
             except BadRequestError as exc:
@@ -122,6 +149,7 @@ class MetaEngine:
 
     async def chat(self, task: str, messages: list[dict], tools: list[dict]) -> dict:
         """One tool-calling turn. Returns the assistant message; API errors propagate to the agent loop."""
+        self.budget.spend()
         resp = await self.client.chat.completions.create(
             model=self.models[task], messages=messages, tools=tools,
             reasoning_effort=self.settings.reasoning_effort,

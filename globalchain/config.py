@@ -45,6 +45,16 @@ class Settings(BaseSettings):
     # Listing prices may arrive in ZAR; brand reference prices are in USD.
     usd_zar_rate: float = 18.0
 
+    # Public-endpoint protection. Model API calls per UTC day (0 = no cap): past it, Muse Spark and
+    # SAM 3.1 aren't called and results are rule-based, labelled as for any failed call.
+    model_calls_per_day: int = 0
+    # Requests a minute per client IP to /mcp and the routes that run models (0 = no limit).
+    rate_limit_per_minute: int = 30
+    # Demo agent wallets outside agents can create over MCP (each is a funded testnet account).
+    agent_wallets_max: int = 100
+    # Behind a proxy (Render, Fly, Vercel) the client IP is the last X-Forwarded-For entry.
+    trust_proxy: bool = False
+
     max_images: int = 4
     http_timeout: float = 30.0
 

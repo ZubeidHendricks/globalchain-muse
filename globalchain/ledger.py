@@ -56,7 +56,8 @@ class Ledger(Protocol):
 
     async def create_wallet(self, label: str, fund_usd: float = 0) -> Wallet: ...
     async def mint_item(self, metadata: bytes, to_account: str, certificate: dict | None) -> tuple[str, int, Tx]: ...
-    async def swap(self, token_id: str, serial: int, seller: str, buyer: str, amount_usd: float) -> Tx: ...
+    async def swap(self, token_id: str, serial: int, seller: str, buyer: str, amount_usd: float,
+                   receiver: str | None = None) -> Tx: ...
     async def transfer_nft(self, token_id: str, serial: int, sender: str, receiver: str) -> Tx: ...
     async def nft_owner(self, token_id: str, serial: int) -> str | None: ...
     async def public_key(self, account_id: str) -> str | None: ...
@@ -128,7 +129,8 @@ class SimulatedLedger:
         self.store.put("sim_nft", nft_ref(token, serial), {"owner": to_account})
         return token, serial, self._tx(f"NFT {nft_ref(token, serial)} issued to {to_account}")
 
-    async def swap(self, token_id, serial, seller, buyer, amount_usd):
+    async def swap(self, token_id, serial, seller, buyer, amount_usd, receiver=None):
+        receiver = receiver or buyer
         cents = round(amount_usd * 100)
         nft = self.store.get("sim_nft", nft_ref(token_id, serial))
         if not nft or nft["owner"] != seller:
@@ -139,8 +141,8 @@ class SimulatedLedger:
         seller_bal = self.store.get("sim_balance", seller) or {"cents": 0}
         self.store.put("sim_balance", buyer, {"cents": bal["cents"] - cents})
         self.store.put("sim_balance", seller, {"cents": seller_bal["cents"] + cents})
-        self.store.put("sim_nft", nft_ref(token_id, serial), {"owner": buyer})
-        return self._tx(f"{amount_usd:.2f} tUSDC {buyer} -> {seller}; NFT {seller} -> {buyer}")
+        self.store.put("sim_nft", nft_ref(token_id, serial), {"owner": receiver})
+        return self._tx(f"{amount_usd:.2f} tUSDC {buyer} -> {seller}; NFT {seller} -> {receiver}")
 
     async def transfer_nft(self, token_id, serial, sender, receiver):
         nft = self.store.get("sim_nft", nft_ref(token_id, serial))
@@ -273,25 +275,26 @@ class HederaLedger:
                                               f"NFT {nft_ref(token, serial)} to vendor {to_account}"))
         return token, serial, tx
 
-    def _swap(self, token_id, serial, seller, buyer, amount_usd) -> Tx:
+    def _swap(self, token_id, serial, seller, buyer, amount_usd, receiver=None) -> Tx:
         from hiero_sdk_python import AccountId, NftId, TokenId, TransferTransaction
 
+        receiver = receiver or buyer
         pay = TokenId.from_string(self._ensure_payment_token())
         cents = round(amount_usd * 10**TOKEN_DECIMALS)
         tx = (TransferTransaction()
               .add_token_transfer(pay, AccountId.from_string(buyer), -cents)
               .add_token_transfer(pay, AccountId.from_string(seller), cents)
               .add_nft_transfer(NftId(TokenId.from_string(token_id), serial),
-                                AccountId.from_string(seller), AccountId.from_string(buyer))
+                                AccountId.from_string(seller), AccountId.from_string(receiver))
               .set_transaction_memo("GlobalChain purchase: payment and ownership in one transaction"))
         tx.freeze_with(self.client)
         tx.sign(self.keys.load(buyer))   # authorises the payment
         tx.sign(self.keys.load(seller))  # authorises handing over the NFT
         receipt = tx.execute(self.client, validate_status=True)
-        return self._ok(receipt, f"{amount_usd:.2f} tUSDC {buyer} -> {seller}; NFT {seller} -> {buyer}")
+        return self._ok(receipt, f"{amount_usd:.2f} tUSDC {buyer} -> {seller}; NFT {seller} -> {receiver}")
 
-    async def swap(self, token_id, serial, seller, buyer, amount_usd):
-        return await self._run(self._swap, token_id, serial, seller, buyer, amount_usd)
+    async def swap(self, token_id, serial, seller, buyer, amount_usd, receiver=None):
+        return await self._run(self._swap, token_id, serial, seller, buyer, amount_usd, receiver)
 
     async def transfer_nft(self, token_id, serial, sender, receiver):
         return await self._run(lambda: self._ok(

@@ -37,6 +37,19 @@ function photo(result, imageIndex) {
     <svg viewBox="0 0 ${fw} ${fh}" preserveAspectRatio="none">${rects}</svg>`;
 }
 
+// The 0-100 scorecard: computed from the checks, it ranks within a recommendation and never lifts one.
+function scoreCard(sc) {
+  const rows = sc.rows.map((r) => `
+    <li><span class="sc-label">${esc(r.label)}</span>
+      <span class="bar">${r.score === null ? "" : `<span style="width:${r.score}%;background:${scoreColor(r.score)}"></span>`}</span>
+      <span class="sc-num">${r.score === null ? "–" : r.score}</span>
+      <span class="muted sc-note">${esc(r.note)}</span></li>`).join("");
+  return `<details class="scorecard">
+    <summary><span class="seal" style="--c:${scoreColor(sc.overall)}">${sc.overall}</span>
+      <span><strong>${esc(sc.grade)}</strong> <span class="muted">overall score · see how it's made up</span></span></summary>
+    <ul>${rows}</ul></details>`;
+}
+
 function card(result) {
   const { listing, seller, product, seller_risk: risk } = result;
   const el = document.createElement("article");
@@ -69,6 +82,7 @@ function card(result) {
       </div>
       ${result.offer ? offerChecks(result.offer) : ""}
       <p><span class="rec ${result.recommendation}">${REC[result.recommendation]}</span> <span class="muted">${esc(result.reason)}</span></p>
+      ${result.scorecard ? scoreCard(result.scorecard) : ""}
       <div class="scores">
         <div class="meter"><div class="label">Product · ${VERDICT[product.verdict]} · ${product.confidence} confidence</div>
           <div class="value">${product.authenticity_score}<span class="muted">/100</span></div>

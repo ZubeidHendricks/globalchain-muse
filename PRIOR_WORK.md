@@ -44,3 +44,10 @@ Listed as it lands, newest last.
 - **Oct 27 · Shopify partner app** (`shopify_app.py`, `static/partners.html`, `static/partner.html`).
   Store owners install the app over OAuth to become verified partners with a Hedera wallet, register
   products at origin from their Shopify photos, and get ownership NFTs minted for buyers on `orders/paid`.
+- **Nov 3 · Scorecards, agent-wallet buying and rate limits** (`scorecard.py`, `agent_wallets.py`,
+  `limits.py`; `find_products`, `create_agent_wallet`, `buy_with_agent_wallet` and `order_status` MCP
+  tools; a daily Model API call cap in `engine.py`). A 0–100 scorecard on every result; outside agents
+  can shop and buy from a capped demo wallet, with the NFT going to the owner's account in the same
+  Hedera transaction; per-IP limits on the public endpoints. The ideas come from the author's separate
+  VeriChainX Sol project (TypeScript, Solana, built Oct 28 – Nov 2, 2026): re-implemented here in Python
+  on Hedera, with no code copied, and the scorecard adapted (an origin part in place of reviews).

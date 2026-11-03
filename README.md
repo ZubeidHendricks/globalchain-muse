@@ -24,6 +24,17 @@ SAM 3.1 and Hedera. It builds on two earlier projects, VeriChainX and AfriChain;
 | `assess_seller_risk` | Read | Rule-based signals (`S1`, `S2`, …) set a base score from price against resale, account age, reviews, listing language and payment methods. Muse Spark reads the context and can adjust the score by at most ±15 points, citing the signals it used. |
 | `issue_verification_record` | Write | Hashes the assessments (canonical JSON, SHA-256) and anchors **only the hash** on the Hedera Consensus Service. Records are only issued from assessments this service produced, and calls are idempotent. |
 | `check_provenance` | Read | Recomputes the hash, fetches the HCS message from the mirror node and compares the two. Also returns the product passport history. |
+| `find_products` | Read | Runs the shopper's agent for an outside agent: vendor agents pitch, every offer is checked (signature and NFT on Hedera, photos, seller risk) and ranked, each with a 0–100 scorecard. Returns a `session_id` for buying. |
+| `create_agent_wallet` | Write | A demo wallet for a bot, funded with tUSDC up to the spending cap its owner sets (max 500). Returns a `wallet_key`, shown once. |
+| `buy_with_agent_wallet` | Write | Buys an offer from a `find_products` session under the shopper agent's guardrail. Refused over `max_price_usd` or the wallet's cap. Payment and the NFT move in one Hedera transaction, and the NFT can go straight to the owner's account (`recipient_account`). Shopify offers stay on the store's own checkout. |
+| `order_status` | Read | An order's fulfilment steps (each anchored on Hedera) and who holds the item's NFT now. |
+
+**Scorecard.** Every result the shopper's agent returns gets a 0–100 score, computed in code from the
+checks: authentic 30% (photos against the origin fingerprint or brand data), origin 25% (origin record,
+vendor signature, NFT held), seller 25% (100 minus seller risk), value 10% (price against the median of
+the other offers, leaving out any to avoid) and delivery 10%. Parts with no evidence are left out rather
+than guessed. It ranks results within a recommendation and can't read better than one: caution is capped
+at 69 (Fair) and avoid at 20.
 
 The chain proves what was checked and when. It does not prove an item is genuine, so the scores stay
 evidence-based.
@@ -62,6 +73,14 @@ Copy `.env.example` to `.env` to configure both.
 - **Web**: `/` (shopping and maker agents), `/track/{order_id}`, `/origin/{registration_id}` (public origin page the QR code opens)
   and `/passport/{product_key}`.
 
+## Public endpoints
+
+When the server is public, `/mcp` and the routes that run models or write to Hedera (`/demo/*` and the
+`POST /v1/...` routes) are limited per client IP (`RATE_LIMIT_PER_MINUTE`, default 30; set `TRUST_PROXY=true`
+behind a proxy so the client IP comes from `X-Forwarded-For`). `MODEL_CALLS_PER_DAY` caps Model API calls per
+UTC day; past it, Muse Spark and SAM 3.1 aren't called and results are rule-based, labelled as they are for
+any failed call. `AGENT_WALLETS_MAX` caps how many funded agent wallets can be created.
+
 ## Layout
 
 ```
@@ -76,6 +95,9 @@ globalchain/
   mcp_server.py   MCP tools (mcp 2.x MCPServer)
   api.py          FastAPI app; mounts MCP at /mcp
   agent.py        the shopper's and maker's Muse Spark agents (tool calling), sessions, scripted fallback
+  scorecard.py    the 0-100 scorecard on each result
+  agent_wallets.py find_products and agent-wallet buying for outside agents (MCP)
+  limits.py       per-IP rate limits for the public endpoints
   vendors.py      vendor directory, vendor Muse agents, signed agent-to-agent messages, NFT ownership checks
   orders.py       prepare, pay (atomic swap), fulfil and track orders; events anchored on HCS
   ledger.py       Hedera wallets, tUSDC, NFT transfers and swaps (hiero-sdk-python), plus a simulated ledger

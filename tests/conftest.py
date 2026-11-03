@@ -10,6 +10,7 @@ os.environ["OPERATOR_KEY"] = ""
 os.environ["SHOPIFY_STORES"] = ""  # tests that need a store use a fake UCP transport
 os.environ["SHOPIFY_API_KEY"] = ""
 os.environ["SHOPIFY_API_SECRET"] = ""
+os.environ["RATE_LIMIT_PER_MINUTE"] = "0"
 os.environ["DATABASE_PATH"] = os.path.join(tempfile.mkdtemp(), "app.db")
 
 

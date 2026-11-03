@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import orders, shopify_app
+from .limits import RateLimitMiddleware
 from .agent import run_agent
 from .demo import shop
 from .mcp_server import mcp
@@ -324,6 +325,8 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     app.include_router(router)
+    app.add_middleware(RateLimitMiddleware, per_minute=settings.rate_limit_per_minute,
+                       trust_proxy=settings.trust_proxy)
     app.mount("/static", StaticFiles(directory=_STATIC), name="static")
     # Last, so the routes above take precedence; serves POST/GET /mcp.
     app.mount("/", mcp_app)

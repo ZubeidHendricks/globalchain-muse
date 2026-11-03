@@ -50,10 +50,12 @@ async def test_mcp_tools_are_listed_with_classes():
 
     tools = {t.name: t for t in await mcp.list_tools()}
     assert set(tools) == {"verify_product", "assess_seller_risk", "issue_verification_record", "check_provenance",
-                          "register_product", "get_registration"}
-    for name in ("verify_product", "assess_seller_risk", "check_provenance", "get_registration"):
+                          "register_product", "get_registration", "find_products", "create_agent_wallet",
+                          "buy_with_agent_wallet", "order_status"}
+    for name in ("verify_product", "assess_seller_risk", "check_provenance", "get_registration", "find_products",
+                 "order_status"):
         assert tools[name].annotations.read_only_hint is True, name
-    for name in ("issue_verification_record", "register_product"):
+    for name in ("issue_verification_record", "register_product", "create_agent_wallet", "buy_with_agent_wallet"):
         write = tools[name].annotations
         assert write.read_only_hint is False and write.destructive_hint is False, name
 

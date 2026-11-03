@@ -23,10 +23,12 @@ from typing import Any
 from openai import APIError
 
 from .demo import inline_static_urls, parse_budget_usd, recommend
+from .engine import BudgetExceeded
 from .orders import PAYMENT_METHODS, prepare_order
 from .provenance import NotFound
 from .references import price_in_usd
 from .schemas import MakerProduct, ProductVerification, SellerRisk
+from .scorecard import scorecard
 from .service import GlobalChain
 from .store import new_id
 from .storefront import store_insights
@@ -303,6 +305,29 @@ async def _order(run: Run, service: GlobalChain, offer_id: str, payment_method: 
             "next": nxt}
 
 
+async def order_from_session(service: GlobalChain, session_id: str, offer_id: str, payment_method: str) -> dict:
+    """prepare_order for an outside agent (MCP), on an offer its shopping session has already checked.
+
+    The same guardrail applies as for the shopper's own agent: nothing unverified, cloned, likely
+    counterfeit or high risk is ordered.
+    """
+    run = _shop_session(session_id)
+    await _order(run, service, offer_id, payment_method)
+    return run.orders[-1]
+
+
+def _shop_session(session_id: str) -> Run:
+    found = _SESSIONS.get(session_id)
+    if not found or found[0].mode != "shop":
+        raise ValueError(f"No shopping session {session_id!r}; call find_products first")
+    return found[0]
+
+
+def session_offer(session_id: str, offer_id: str) -> dict:
+    """An offer as a shopping session saw it (vendor check, NFT, price), before anything is ordered."""
+    return _offer(_shop_session(session_id), offer_id)
+
+
 # --- maker tools ----------------------------------------------------------------------------------
 
 def _photos(run: Run, ids: list[str] | None) -> list[str]:
@@ -551,6 +576,9 @@ def _results(run: Run, service: GlobalChain) -> list[dict]:
                     "product": p.model_dump(), "seller_risk": r.model_dump(),
                     "recommendation": rec["recommendation"], "reason": rec["reason"],
                     "overridden": rec.get("overridden", False), "status": i["status"]})
+    peers = [r["price_usd"] for r in out if r["recommendation"] != "avoid"]  # a counterfeit's price isn't a fair peer
+    for r in out:
+        r["scorecard"] = scorecard(r, peers)
     return out
 
 
@@ -578,7 +606,7 @@ async def run_agent(mode: str, message: str, service: GlobalChain, photos: list[
     for _ in range(MAX_TURNS):
         try:
             msg = await policy.next(run, messages)
-        except APIError as exc:  # keep going on the scripted policy rather than leave the shopper stranded
+        except (APIError, BudgetExceeded) as exc:  # keep going on the scripted policy rather than leave the shopper stranded
             log.warning("Muse Spark agent turn failed (%s); continuing on the scripted policy", exc)
             run.trace.append({"kind": "note", "text": f"Muse Spark unavailable ({type(exc).__name__}); "
                                                       "continuing with the scripted policy"})
